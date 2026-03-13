@@ -1,0 +1,29 @@
+# /etc/kamailio/tls.cfg — managed by Puppet, do not edit manually.
+#
+# TLS configuration for the SCAIP proxy.
+# Place the certificate and key at the paths configured in Puppet before
+# starting kamailio.
+
+[server:default]
+method = TLSv1.2+
+# Internal clients may not present a certificate; set to yes if they do.
+verify_certificate = no
+require_certificate = no
+certificate = <%= @tls_cert_file %>
+private_key = <%= @tls_key_file %>
+<%- if @tls_ca_file -%>
+ca_list = <%= @tls_ca_file %>
+<%- end -%>
+
+[client:default]
+method = TLSv1.2+
+# Verify the upstream (Skyresponse) certificate against the CA bundle.
+verify_certificate = yes
+require_certificate = no
+certificate = <%= @tls_cert_file %>
+private_key = <%= @tls_key_file %>
+<%- if @tls_ca_file -%>
+ca_list = <%= @tls_ca_file %>
+<%- else -%>
+ca_list = /etc/ssl/certs/ca-certificates.crt
+<%- end -%>

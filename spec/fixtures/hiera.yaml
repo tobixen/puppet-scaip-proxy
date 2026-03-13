@@ -1,0 +1,5 @@
+---
+version: 5
+hierarchy:
+  - name: 'No data'
+    data_hash: stub_data

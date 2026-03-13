@@ -1,0 +1,10 @@
+fixtures:
+  forge_modules:
+    stdlib:
+      repo: puppetlabs/stdlib
+      ref: "9.0.0"
+    apt:
+      repo: puppetlabs/apt
+      ref: "9.4.0"
+  symlinks:
+    scaip_proxy: "#{source_dir}"

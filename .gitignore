@@ -1,0 +1,9 @@
+.bundle/
+vendor/
+spec/fixtures/modules/
+spec/fixtures/manifests/
+pkg/
+Gemfile.lock
+.vagrant/
+*.swp
+*~

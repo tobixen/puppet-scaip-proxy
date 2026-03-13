@@ -1,0 +1,37 @@
+{
+  "name": "tobixen-scaip_proxy",
+  "version": "0.1.0",
+  "author": "tobixen",
+  "summary": "Deploy Kamailio as a SCAIP SIP proxy for isolated RFC1918 networks",
+  "license": "MIT",
+  "source": "https://github.com/tobixen/sip-proxy",
+  "project_page": "https://github.com/tobixen/sip-proxy",
+  "issues_url": "https://github.com/tobixen/sip-proxy/issues",
+  "tags": [
+    "sip",
+    "kamailio",
+    "scaip",
+    "proxy",
+    "voip"
+  ],
+  "operatingsystem_support": [
+    { "operatingsystem": "Debian" },
+    { "operatingsystem": "Ubuntu" }
+  ],
+  "requirements": [
+    {
+      "name": "puppet",
+      "version_requirement": ">= 7.0.0 < 9.0.0"
+    }
+  ],
+  "dependencies": [
+    {
+      "name": "puppetlabs/stdlib",
+      "version_requirement": ">= 8.0.0 < 10.0.0"
+    },
+    {
+      "name": "puppetlabs/apt",
+      "version_requirement": ">= 9.0.0 < 11.0.0"
+    }
+  ]
+}

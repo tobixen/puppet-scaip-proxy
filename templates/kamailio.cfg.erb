@@ -1,0 +1,190 @@
+#!KAMAILIO
+# SCAIP SIP Proxy — managed by Puppet, do not edit manually.
+#
+# Forwards SIP/SIPS traffic from internal RFC1918 alarm devices to the
+# Skyresponse SCAIP server over TLS.
+#
+# Health:    http://<host>:<%= @http_port %>/health
+# Readiness: http://<host>:<%= @http_port %>/ready
+# Metrics:   http://<host>:<%= @http_port %>/metrics
+
+####### Global Parameters #######
+
+debug=<%= @debug_level %>
+log_stderror=no
+log_facility=<%= @log_facility %>
+log_prefix="{$mt $hdr(CSeq) $ci} "
+
+# Worker processes — 2 per CPU core is a typical starting point
+children=4
+
+# Internal interface
+listen=udp:<%= @listen_address %>:<%= @listen_port %>
+listen=tcp:<%= @listen_address %>:<%= @listen_port %>
+<% if @tls_enabled -%>
+listen=tls:<%= @listen_address %>:<%= @listen_tls_port %>
+<% end -%>
+
+# HTTP port for health/readiness probes and Prometheus metrics
+listen=tcp:<%= @listen_address %>:<%= @http_port %>
+
+# Public IP alias used to rewrite Contact and Via headers for NAT
+alias=<%= @public_ip %>
+<% if @tls_enabled -%>
+enable_tls=1
+<% end -%>
+
+####### Modules Section #######
+
+loadmodule "tm.so"
+loadmodule "tmx.so"
+loadmodule "sl.so"
+loadmodule "rr.so"
+loadmodule "pv.so"
+loadmodule "maxfwd.so"
+loadmodule "textops.so"
+loadmodule "siputils.so"
+loadmodule "xlog.so"
+loadmodule "sanity.so"
+loadmodule "nathelper.so"
+<% if @tls_enabled -%>
+loadmodule "tls.so"
+<% end -%>
+loadmodule "xhttp.so"
+<% if @metrics_enabled -%>
+# prometheus.so is provided by kamailio-extra-modules
+loadmodule "prometheus.so"
+<% end -%>
+
+####### Module Parameters #######
+
+<% if @tls_enabled -%>
+modparam("tls", "config", "/etc/kamailio/tls.cfg")
+<% end -%>
+
+# Send OPTIONS keepalives to natted clients every 30 seconds to maintain
+# the persistent TLS connection required by SCAIP.
+modparam("nathelper", "natping_interval", 30)
+modparam("nathelper", "ping_nated_only", 1)
+modparam("nathelper", "sipping_from", "sip:pinger@<%= @public_ip %>")
+modparam("nathelper", "sipping_bflag", 7)
+
+# Full loose-routing ensures in-dialog requests (BYE, re-INVITE, etc.)
+# are routed correctly through the proxy.
+modparam("rr", "enable_full_lr", 1)
+
+####### Routing Logic #######
+
+request_route {
+    route(REQINIT);
+
+    # Short-circuit retransmissions
+    if (t_precheck_trans()) {
+        t_check_trans();
+        exit;
+    }
+    t_check_trans();
+
+    # In-dialog requests (ACK, BYE, re-INVITE, etc.)
+    if (has_totag()) {
+        route(WITHINDLG);
+        exit;
+    }
+
+    # Stay in the signalling path for the duration of the dialog
+    if (is_method("INVITE|SUBSCRIBE")) {
+        record_route();
+    }
+
+    # Detect NAT and rewrite the Contact header with our public alias so
+    # that the upstream can reach the client through us on the return path.
+    if (nat_uac_test("19")) {
+        if (is_method("REGISTER")) {
+            fix_nated_register();
+        } else {
+            if (is_first_hop()) {
+                set_contact_alias();
+            }
+        }
+        setflag(6);
+    }
+
+    route(UPSTREAM);
+}
+
+# Initial request sanity checks
+route[REQINIT] {
+    if (!sanity_check("1511", "7")) {
+        xlog("L_WARN", "Malformed SIP message from $si:$sp — dropping\n");
+        exit;
+    }
+
+    if (!mf_process_maxfwd_header("10")) {
+        sl_send_reply("483", "Too Many Hops");
+        exit;
+    }
+
+    # Respond to OPTIONS keepalives addressed to us (e.g. from Skyresponse)
+    if (is_method("OPTIONS") && uri==myself) {
+        sl_send_reply("200", "Keepalive");
+        exit;
+    }
+}
+
+# In-dialog request handling (loose routing)
+route[WITHINDLG] {
+    if (loose_route()) {
+        route(RELAY);
+    } else {
+        if (is_method("ACK")) {
+            if (t_check_trans()) {
+                route(RELAY);
+            } else {
+                exit;
+            }
+        }
+        sl_send_reply("404", "Not Here");
+    }
+    exit;
+}
+
+# Route to the Skyresponse upstream
+route[UPSTREAM] {
+    $du = "<%= @upstream_scheme %>:<%= @upstream_host %>:<%= @upstream_port %>;transport=tls";
+    xlog("L_INFO", "Routing $rm from $si to $du — Call-ID: $ci\n");
+    route(RELAY);
+}
+
+# Generic stateful relay
+route[RELAY] {
+    if (!t_relay()) {
+        sl_reply_error();
+    }
+    exit;
+}
+
+####### HTTP: health, readiness, metrics #######
+
+event_route[xhttp:request] {
+    set_reply_close();
+    set_reply_no_connect();
+
+    if ($hu =~ "^/health") {
+        xhttp_reply("200", "OK", "text/plain", "OK\n");
+        exit;
+    }
+
+    if ($hu =~ "^/ready") {
+        xhttp_reply("200", "OK", "text/plain", "OK\n");
+        exit;
+    }
+
+<% if @metrics_enabled -%>
+    if ($hu =~ "^/metrics") {
+        prometheus_dispatch();
+        exit;
+    }
+
+<% end -%>
+    xhttp_reply("404", "Not Found", "text/plain", "Not Found\n");
+}
