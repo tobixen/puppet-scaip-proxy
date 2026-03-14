@@ -5,7 +5,13 @@ describe 'scaip_proxy' do
     context "on #{os}" do
       let(:facts) { os_facts }
 
+      context 'without upstream_host' do
+        it { is_expected.to compile.and_raise_error(/upstream_host is required/) }
+      end
+
       context 'with default parameters' do
+        let(:params) { { upstream_host: 'sip.example.com' } }
+
         it { is_expected.to compile.with_all_deps }
         it { is_expected.to contain_class('scaip_proxy') }
         it { is_expected.to contain_class('scaip_proxy::params') }
@@ -36,7 +42,7 @@ describe 'scaip_proxy' do
       end
 
       context 'with manage_repo => false' do
-        let(:params) { { manage_repo: false } }
+        let(:params) { { upstream_host: 'sip.example.com', manage_repo: false } }
 
         it { is_expected.to compile.with_all_deps }
         it { is_expected.not_to contain_apt__source('kamailio') }
@@ -44,7 +50,7 @@ describe 'scaip_proxy' do
       end
 
       context 'with tls_enabled => false' do
-        let(:params) { { tls_enabled: false } }
+        let(:params) { { upstream_host: 'sip.example.com', tls_enabled: false } }
 
         it { is_expected.to compile.with_all_deps }
         it { is_expected.to contain_package('kamailio') }
@@ -56,7 +62,7 @@ describe 'scaip_proxy' do
       end
 
       context 'with metrics_enabled => false' do
-        let(:params) { { metrics_enabled: false } }
+        let(:params) { { upstream_host: 'sip.example.com', metrics_enabled: false } }
 
         it { is_expected.to compile.with_all_deps }
         it { is_expected.not_to contain_package('kamailio-extra-modules') }
@@ -67,21 +73,21 @@ describe 'scaip_proxy' do
       end
 
       context 'with manage_service => false' do
-        let(:params) { { manage_service: false } }
+        let(:params) { { upstream_host: 'sip.example.com', manage_service: false } }
 
         it { is_expected.to compile.with_all_deps }
         it { is_expected.not_to contain_service('kamailio') }
       end
 
       context 'with manage_config => false' do
-        let(:params) { { manage_config: false } }
+        let(:params) { { upstream_host: 'sip.example.com', manage_config: false } }
 
         it { is_expected.to compile.with_all_deps }
         it { is_expected.not_to contain_file('/etc/kamailio/kamailio.cfg') }
       end
 
       context 'with extra_packages' do
-        let(:params) { { extra_packages: ['kamailio-utils-modules'] } }
+        let(:params) { { upstream_host: 'sip.example.com', extra_packages: ['kamailio-utils-modules'] } }
 
         it { is_expected.to compile.with_all_deps }
         it { is_expected.to contain_package('kamailio-utils-modules') }

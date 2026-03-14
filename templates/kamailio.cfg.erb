@@ -2,7 +2,7 @@
 # SCAIP SIP Proxy — managed by Puppet, do not edit manually.
 #
 # Forwards SIP/SIPS traffic from internal RFC1918 alarm devices to the
-# Skyresponse SCAIP server over TLS.
+# upstream SCAIP server over TLS.
 #
 # Health:    http://<host>:<%= @http_port %>/health
 # Readiness: http://<host>:<%= @http_port %>/ready
@@ -124,7 +124,7 @@ route[REQINIT] {
         exit;
     }
 
-    # Respond to OPTIONS keepalives addressed to us (e.g. from Skyresponse)
+    # Respond to OPTIONS keepalives addressed to us (e.g. from the upstream)
     if (is_method("OPTIONS") && uri==myself) {
         sl_send_reply("200", "Keepalive");
         exit;
@@ -148,7 +148,7 @@ route[WITHINDLG] {
     exit;
 }
 
-# Route to the Skyresponse upstream
+# Route to the upstream SCAIP server
 route[UPSTREAM] {
     $du = "<%= @upstream_scheme %>:<%= @upstream_host %>:<%= @upstream_port %>;transport=tls";
     xlog("L_INFO", "Routing $rm from $si to $du — Call-ID: $ci\n");

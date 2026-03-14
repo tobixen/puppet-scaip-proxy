@@ -17,7 +17,7 @@ ca_list = <%= @tls_ca_file %>
 
 [client:default]
 method = TLSv1.2+
-# Verify the upstream (Skyresponse) certificate against the CA bundle.
+# Verify the upstream certificate against the CA bundle.
 verify_certificate = yes
 require_certificate = no
 certificate = <%= @tls_cert_file %>

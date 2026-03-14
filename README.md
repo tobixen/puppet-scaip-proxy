@@ -2,7 +2,7 @@
 
 Puppet module that installs and configures [Kamailio](https://www.kamailio.org/) as a
 transparent SIP proxy for [SCAIP](https://www.scaip.org/) alarm devices on isolated RFC1918
-networks. The proxy forwards alarm traffic to a Skyresponse SCAIP server over TLS, handles
+networks. The proxy forwards alarm traffic to an upstream SCAIP server over TLS, handles
 NAT traversal, and exposes health, readiness, and Prometheus metrics endpoints.
 
 See [`docs/DECISIONS.md`](docs/DECISIONS.md) for the rationale behind the software choices.
@@ -15,14 +15,16 @@ See [`docs/DECISIONS.md`](docs/DECISIONS.md) for the rationale behind the softwa
 
 ## Usage
 
-### Minimal (all defaults)
+### Minimal
 
 ```puppet
-include scaip_proxy
+class { 'scaip_proxy':
+  upstream_host => 'sip.example.com',
+}
 ```
 
 This installs Kamailio 6.0.x from the official apt repository, configures it to forward
-SCAIP traffic to `prod2.voip.skyresponse.com:5061` over SIPS/TLS, and starts the service.
+SCAIP traffic to the given upstream host on port 5061 over SIPS/TLS, and starts the service.
 
 > **Important:** The `public_ip` parameter defaults to the node's primary NIC IP, which is
 > almost certainly wrong for a dual-homed proxy. Always set it explicitly via Hiera.
@@ -31,6 +33,7 @@ SCAIP traffic to `prod2.voip.skyresponse.com:5061` over SIPS/TLS, and starts the
 
 ```yaml
 # hiera data for the proxy node
+scaip_proxy::upstream_host: 'sip.example.com'
 scaip_proxy::public_ip: '203.0.113.10'
 scaip_proxy::listen_address: '10.0.1.1'   # internal interface only
 ```
@@ -112,8 +115,8 @@ automatically when `metrics_enabled` is `true` (the default).
 | `listen_port`     | `5060`                           | SIP UDP/TCP port |
 | `listen_tls_port` | `5061`                           | SIPS TLS port |
 | `public_ip`       | primary NIC IP                   | Public IP for Contact/Via NAT rewriting — **set this explicitly** |
-| `upstream_host`   | `prod2.voip.skyresponse.com`     | Skyresponse SCAIP server hostname |
-| `upstream_port`   | `5061`                           | Skyresponse SCAIP server port |
+| `upstream_host`   | **required**                     | Upstream SCAIP server hostname |
+| `upstream_port`   | `5061`                           | Upstream SCAIP server port |
 | `upstream_scheme` | `sips`                           | URI scheme for upstream (`sips` or `sip`) |
 | `tls_enabled`     | `true`                           | Enable TLS/SIPS support |
 | `tls_cert_file`   | `/etc/kamailio/tls/cert.pem`     | TLS certificate PEM path |

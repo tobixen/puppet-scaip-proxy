@@ -23,8 +23,8 @@ class scaip_proxy::params {
   # Must be set explicitly via Hiera for each server.
   $public_ip = $facts['networking']['ip']
 
-  # Skyresponse SCAIP upstream server
-  $upstream_host   = 'prod2.voip.skyresponse.com'
+  # Upstream SCAIP server — mandatory, no default
+  $upstream_host   = undef
   $upstream_port   = 5061
   $upstream_scheme = 'sips'
 

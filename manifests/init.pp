@@ -1,8 +1,8 @@
 # @summary Deploy Kamailio as a SCAIP SIP proxy for isolated RFC1918 networks
 #
 # Installs Kamailio and configures it as a transparent SIP proxy that forwards
-# SCAIP alarm traffic from clients on an isolated network to the Skyresponse
-# SCAIP server over TLS.
+# SCAIP alarm traffic from clients on an isolated network to a configured
+# upstream SCAIP server over TLS.
 #
 # See docs/DECISIONS.md for rationale on software choices.
 #
@@ -43,10 +43,10 @@
 #   almost certainly wrong for a dual-homed proxy.
 #
 # @param upstream_host
-#   Skyresponse SCAIP server hostname.
+#   SCAIP server hostname. Mandatory — no default is provided.
 #
 # @param upstream_port
-#   Skyresponse SCAIP server port.
+#   Upstream SCAIP server port.
 #
 # @param upstream_scheme
 #   URI scheme for the upstream connection ('sips' or 'sip').
@@ -108,6 +108,10 @@ class scaip_proxy (
   $metrics_enabled  = $scaip_proxy::params::metrics_enabled,
   $extra_packages   = $scaip_proxy::params::extra_packages,
 ) inherits scaip_proxy::params {
+
+  if $upstream_host == undef {
+    fail('scaip_proxy: upstream_host is required — set it via Hiera or as a class parameter')
+  }
 
   $base_packages = $tls_enabled ? {
     true    => ['kamailio', 'kamailio-tls-modules'],
