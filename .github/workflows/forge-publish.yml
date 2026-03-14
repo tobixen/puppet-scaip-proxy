@@ -1,0 +1,34 @@
+---
+name: "Module Release"
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  release:
+    name: "Release to Forge"
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: "PDK build"
+        uses: docker://puppet/pdk:3.0.0.0
+        with:
+          args: "build"
+
+      - name: "Publish to Forge"
+        uses: docker://puppet/pdk:3.0.0.0
+        with:
+          args: 'release publish --forge-token ${{ secrets.FORGE_API_KEY }} --force'
