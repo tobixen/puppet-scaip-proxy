@@ -136,7 +136,7 @@ class scaip_proxy (
       release  => $facts['os']['distro']['codename'],
       repos    => 'main',
       key      => {
-        'id'     => 'DFBB876C8D3A0000BAFEEFBD7B6639B1C27D93EF',
+        'id'     => 'E79ACECB87D8DCD23A20AD2FFB40D3E6508EA4C8',
         'source' => 'https://deb.kamailio.org/kamailiodebkey.gpg',
       },
     }
