@@ -1,0 +1,25 @@
+#!/bin/sh
+# Abort a push if a version tag (v*) is included but doesn't match
+# the version declared in metadata.json.
+
+metadata_version() {
+  # Extract "version" from metadata.json without requiring jq
+  grep '"version"' metadata.json | sed 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/'
+}
+
+while read _local_ref _local_sha _remote_ref _remote_sha; do
+  # We only care about refs that look like a version tag
+  case "$_local_ref" in
+    refs/tags/v*)
+      tag="${_local_ref#refs/tags/v}"
+      meta="$(metadata_version)"
+      if [ "$tag" != "$meta" ]; then
+        echo "error: tag version '$tag' does not match metadata.json version '$meta'" >&2
+        echo "       Update metadata.json (and CHANGELOG.md) before pushing this tag." >&2
+        exit 1
+      fi
+      ;;
+  esac
+done
+
+exit 0

@@ -17,6 +17,12 @@ task :validate do
   end
 end
 
+desc 'Configure git to use the project hooks in .githooks/'
+task :setup do
+  sh 'git config core.hooksPath .githooks'
+  puts 'Git hooks configured. Run "bundle exec rake setup" once per clone.'
+end
+
 desc 'Run all tests'
 task :test => [:lint, :validate, :spec]
 
