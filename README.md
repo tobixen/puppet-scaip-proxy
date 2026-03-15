@@ -128,6 +128,46 @@ The `/metrics` endpoint uses the `xhttp_prom` module, which is part of the base
 | `metrics_enabled` | `true`                           | Enable Prometheus `/metrics` endpoint |
 | `extra_packages`  | `[]`                             | Additional `kamailio-*` packages to install |
 
+## Limitations and known caveats
+
+### NAT keepalives not implemented
+
+The module does **not** send active OPTIONS keepalives to natted clients.
+Kamailio's `nathelper` module can do this via `natping_interval`, but that
+feature requires the `usrloc` (location database) module, which is not loaded
+here because this is a pure forwarding proxy with no registrar.
+
+If alarm devices lose their NAT mapping while idle (no in-progress call), new
+inbound traffic from the upstream toward the device will fail until the device
+re-establishes the connection. Mitigations:
+
+- Configure the alarm devices to send their own SIP keepalives (OPTIONS or
+  re-REGISTER) at an interval shorter than the NAT binding timeout.
+- Use TLS, which typically uses TCP and therefore has persistent connections
+  that survive as long as both ends keep the socket open (TCP keepalives or
+  application-level pings from the device).
+- If active pings from the proxy side are required, add `usrloc` and a
+  REGISTER handler — but that turns this proxy into a registrar, which is
+  a significant scope change.
+
+### RTP media relay not included
+
+This module only proxies **SIP signalling**. If a SCAIP call involves an RTP
+media stream (e.g. two-way voice to an alarm operator) and either endpoint is
+behind NAT, the media will not traverse the proxy — only the SIP headers are
+rewritten.
+
+To relay media you would need a media proxy such as
+[rtpengine](https://github.com/sipwise/rtpengine) (Kamailio module:
+`kamailio-rtpengine-modules`) integrated into the routing logic. Whether this
+is required depends on the SCAIP profile in use and the network topology:
+
+- If the upstream SCAIP server can reach the alarm device's private IP
+  directly (e.g. via a routed VPN or the upstream does its own NAT traversal),
+  no media relay is needed.
+- If both the alarm device and the upstream server reach each other only via
+  this proxy, a media relay is required for audio to work.
+
 ## Development
 
 ```bash
