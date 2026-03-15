@@ -22,8 +22,12 @@ describe 'scaip_proxy' do
         # Base + TLS packages (tls_enabled=true by default)
         it { is_expected.to contain_package('kamailio').with_ensure('installed') }
         it { is_expected.to contain_package('kamailio-tls-modules').with_ensure('installed') }
-        # metrics_enabled=true by default
-        it { is_expected.to contain_package('kamailio-extra-modules').with_ensure('installed') }
+        # xhttp_prom is in the base kamailio package; no extra package needed for metrics
+        it { is_expected.not_to contain_package('kamailio-extra-modules') }
+        it do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(/xhttp_prom/)
+        end
 
         # Config files
         it { is_expected.to contain_file('/etc/kamailio/kamailio.cfg').with_ensure('file') }
@@ -68,7 +72,7 @@ describe 'scaip_proxy' do
         it { is_expected.not_to contain_package('kamailio-extra-modules') }
         it do
           is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
-            .without_content(/prometheus/)
+            .without_content(/xhttp_prom/)
         end
       end
 

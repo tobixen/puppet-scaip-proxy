@@ -97,8 +97,8 @@ Kamailio exposes an HTTP server on port 8080 (configurable via `http_port`):
 | `/ready`   | Returns `200 OK` — readiness probe            |
 | `/metrics` | Prometheus metrics (requires `metrics_enabled => true`) |
 
-The `/metrics` endpoint requires the `kamailio-extra-modules` package, installed
-automatically when `metrics_enabled` is `true` (the default).
+The `/metrics` endpoint uses the `xhttp_prom` module, which is part of the base
+`kamailio` package — no additional packages are required.
 
 ## Parameters
 

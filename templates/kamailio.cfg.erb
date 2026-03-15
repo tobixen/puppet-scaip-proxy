@@ -52,8 +52,8 @@ loadmodule "tls.so"
 <% end -%>
 loadmodule "xhttp.so"
 <% if @metrics_enabled -%>
-# prometheus.so is provided by kamailio-extra-modules
-loadmodule "prometheus.so"
+# xhttp_prom.so is in the base kamailio package
+loadmodule "xhttp_prom.so"
 <% end -%>
 
 ####### Module Parameters #######
@@ -181,7 +181,7 @@ event_route[xhttp:request] {
 
 <% if @metrics_enabled -%>
     if ($hu =~ "^/metrics") {
-        prometheus_dispatch();
+        xhttp_prom_reply();
         exit;
     }
 

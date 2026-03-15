@@ -78,7 +78,7 @@
 #
 # @param metrics_enabled
 #   Enable the Prometheus metrics endpoint at /metrics.
-#   Requires kamailio-extra-modules to be installed.
+#   Uses xhttp_prom.so, which is included in the base kamailio package.
 #
 # @param extra_packages
 #   Additional kamailio-* packages to install (e.g. ['kamailio-utils-modules']).
@@ -118,10 +118,7 @@ class scaip_proxy (
     default => ['kamailio'],
   }
 
-  $metrics_packages = $metrics_enabled ? {
-    true    => ['kamailio-extra-modules'],
-    default => [],
-  }
+  $metrics_packages = []
 
   $all_packages = union($base_packages, $metrics_packages, $extra_packages)
 
