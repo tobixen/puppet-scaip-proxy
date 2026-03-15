@@ -7,6 +7,10 @@ NAT traversal, and exposes health, readiness, and Prometheus metrics endpoints.
 
 See [`docs/DECISIONS.md`](docs/DECISIONS.md) for the rationale behind the software choices.
 
+Perhaps this module can be renamed and fixed into a general module for setting
+up kamailio, but as I only need kamailio for this single purpose,
+that's all the module can do as for now.
+
 ## Requirements
 
 - **Puppet** 7.x or 8.x
@@ -97,8 +101,8 @@ Kamailio exposes an HTTP server on port 8080 (configurable via `http_port`):
 | `/ready`   | Returns `200 OK` — readiness probe            |
 | `/metrics` | Prometheus metrics (requires `metrics_enabled => true`) |
 
-The `/metrics` endpoint requires the `kamailio-extra-modules` package, installed
-automatically when `metrics_enabled` is `true` (the default).
+The `/metrics` endpoint uses the `xhttp_prom` module, which is part of the base
+`kamailio` package — no additional packages are required.
 
 ## Parameters
 
@@ -127,6 +131,63 @@ automatically when `metrics_enabled` is `true` (the default).
 | `http_port`       | `8080`                           | Port for `/health`, `/ready`, `/metrics` |
 | `metrics_enabled` | `true`                           | Enable Prometheus `/metrics` endpoint |
 | `extra_packages`  | `[]`                             | Additional `kamailio-*` packages to install |
+
+## Limitations and known caveats
+
+### NAT keepalives not implemented
+
+The module does **not** send active OPTIONS keepalives to natted clients.
+Kamailio's `nathelper` module can do this via `natping_interval`, but that
+feature requires the `usrloc` (location database) module, which is not loaded
+here because this is a pure forwarding proxy with no registrar.
+
+If alarm devices lose their NAT mapping while idle (no in-progress call), new
+inbound traffic from the upstream toward the device will fail until the device
+re-establishes the connection. Mitigations:
+
+- Configure the alarm devices to send their own SIP keepalives (OPTIONS or
+  re-REGISTER) at an interval shorter than the NAT binding timeout.
+- Use TLS, which typically uses TCP and therefore has persistent connections
+  that survive as long as both ends keep the socket open (TCP keepalives or
+  application-level pings from the device).
+- If active pings from the proxy side are required, add `usrloc` and a
+  REGISTER handler — but that turns this proxy into a registrar, which is
+  a significant scope change.
+
+### RTP media relay not included
+
+This module only proxies **SIP signalling**. If a SCAIP call involves an RTP
+media stream (e.g. two-way voice to an alarm operator) and either endpoint is
+behind NAT, the media will not traverse the proxy — only the SIP headers are
+rewritten.
+
+To relay media you would need a media proxy such as
+[rtpengine](https://github.com/sipwise/rtpengine) (Kamailio module:
+`kamailio-rtpengine-modules`) integrated into the routing logic. Whether this
+is required depends on the SCAIP profile in use and the network topology:
+
+- If the upstream SCAIP server can reach the alarm device's private IP
+  directly (e.g. via a routed VPN or the upstream does its own NAT traversal),
+  no media relay is needed.
+- If both the alarm device and the upstream server reach each other only via
+  this proxy, a media relay is required for audio to work.
+
+### SNI / multiple certificates not supported
+
+The module configures a single TLS certificate for all incoming connections.
+Kamailio's TLS module does support SNI (named `[server:hostname]` sections in
+`tls.cfg`), but this module only exposes a single `tls_cert_file`/`tls_key_file`
+pair.
+
+This matters if you want to serve multiple brand hostnames from the same proxy
+(e.g. `scaip-proxy.acme.com` and `scaip-proxy.emca.com`) each with their own
+certificate. Workarounds:
+
+- **SAN certificate**: order a single certificate with all hostnames as Subject
+  Alternative Names. All brands share one cert; no module changes needed.
+- **Extend the module**: add a `tls_domains` hash parameter and expand
+  `tls.cfg.erb` to emit one `[server:hostname]` section per entry. The routing
+  logic is unaffected — all brands forward to the same upstream regardless.
 
 ## Development
 

@@ -52,8 +52,8 @@ loadmodule "tls.so"
 <% end -%>
 loadmodule "xhttp.so"
 <% if @metrics_enabled -%>
-# prometheus.so is provided by kamailio-extra-modules
-loadmodule "prometheus.so"
+# xhttp_prom.so is in the base kamailio package
+loadmodule "xhttp_prom.so"
 <% end -%>
 
 ####### Module Parameters #######
@@ -61,13 +61,6 @@ loadmodule "prometheus.so"
 <% if @tls_enabled -%>
 modparam("tls", "config", "/etc/kamailio/tls.cfg")
 <% end -%>
-
-# Send OPTIONS keepalives to natted clients every 30 seconds to maintain
-# the persistent TLS connection required by SCAIP.
-modparam("nathelper", "natping_interval", 30)
-modparam("nathelper", "ping_nated_only", 1)
-modparam("nathelper", "sipping_from", "sip:pinger@<%= @public_ip %>")
-modparam("nathelper", "sipping_bflag", 7)
 
 # Full loose-routing ensures in-dialog requests (BYE, re-INVITE, etc.)
 # are routed correctly through the proxy.
@@ -99,12 +92,8 @@ request_route {
     # Detect NAT and rewrite the Contact header with our public alias so
     # that the upstream can reach the client through us on the return path.
     if (nat_uac_test("19")) {
-        if (is_method("REGISTER")) {
-            fix_nated_register();
-        } else {
-            if (is_first_hop()) {
-                set_contact_alias();
-            }
+        if (is_first_hop()) {
+            set_contact_alias();
         }
         setflag(6);
     }
@@ -181,7 +170,7 @@ event_route[xhttp:request] {
 
 <% if @metrics_enabled -%>
     if ($hu =~ "^/metrics") {
-        prometheus_dispatch();
+        prom_dispatch();
         exit;
     }
 
