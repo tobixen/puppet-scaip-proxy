@@ -62,13 +62,6 @@ loadmodule "xhttp_prom.so"
 modparam("tls", "config", "/etc/kamailio/tls.cfg")
 <% end -%>
 
-# Send OPTIONS keepalives to natted clients every 30 seconds to maintain
-# the persistent TLS connection required by SCAIP.
-modparam("nathelper", "natping_interval", 30)
-modparam("nathelper", "ping_nated_only", 1)
-modparam("nathelper", "sipping_from", "sip:pinger@<%= @public_ip %>")
-modparam("nathelper", "sipping_bflag", 7)
-
 # Full loose-routing ensures in-dialog requests (BYE, re-INVITE, etc.)
 # are routed correctly through the proxy.
 modparam("rr", "enable_full_lr", 1)
