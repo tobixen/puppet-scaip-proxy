@@ -7,6 +7,10 @@ NAT traversal, and exposes health, readiness, and Prometheus metrics endpoints.
 
 See [`docs/DECISIONS.md`](docs/DECISIONS.md) for the rationale behind the software choices.
 
+Perhaps this module can be renamed and fixed into a general module for setting
+up kamailio, but as I only need kamailio for this single purpose,
+that's all the module can do as for now.
+
 ## Requirements
 
 - **Puppet** 7.x or 8.x
