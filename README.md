@@ -168,6 +168,23 @@ is required depends on the SCAIP profile in use and the network topology:
 - If both the alarm device and the upstream server reach each other only via
   this proxy, a media relay is required for audio to work.
 
+### SNI / multiple certificates not supported
+
+The module configures a single TLS certificate for all incoming connections.
+Kamailio's TLS module does support SNI (named `[server:hostname]` sections in
+`tls.cfg`), but this module only exposes a single `tls_cert_file`/`tls_key_file`
+pair.
+
+This matters if you want to serve multiple brand hostnames from the same proxy
+(e.g. `scaip-proxy.acme.com` and `scaip-proxy.emca.com`) each with their own
+certificate. Workarounds:
+
+- **SAN certificate**: order a single certificate with all hostnames as Subject
+  Alternative Names. All brands share one cert; no module changes needed.
+- **Extend the module**: add a `tls_domains` hash parameter and expand
+  `tls.cfg.erb` to emit one `[server:hostname]` section per entry. The routing
+  logic is unaffected — all brands forward to the same upstream regardless.
+
 ## Development
 
 ```bash
