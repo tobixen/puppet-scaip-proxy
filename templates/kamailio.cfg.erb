@@ -92,12 +92,8 @@ request_route {
     # Detect NAT and rewrite the Contact header with our public alias so
     # that the upstream can reach the client through us on the return path.
     if (nat_uac_test("19")) {
-        if (is_method("REGISTER")) {
-            fix_nated_register();
-        } else {
-            if (is_first_hop()) {
-                set_contact_alias();
-            }
+        if (is_first_hop()) {
+            set_contact_alias();
         }
         setflag(6);
     }
