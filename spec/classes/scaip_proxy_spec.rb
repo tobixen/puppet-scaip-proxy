@@ -27,6 +27,7 @@ describe 'scaip_proxy' do
         it do
           is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
             .with_content(/xhttp_prom/)
+            .with_content(/prom_dispatch/)
         end
 
         # Config files
