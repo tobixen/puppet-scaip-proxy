@@ -181,7 +181,7 @@ event_route[xhttp:request] {
 
 <% if @metrics_enabled -%>
     if ($hu =~ "^/metrics") {
-        xhttp_prom_reply();
+        prom_dispatch();
         exit;
     }
 
