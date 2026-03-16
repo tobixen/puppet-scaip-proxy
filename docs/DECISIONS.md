@@ -25,10 +25,6 @@ Last substantive code commit: 2019. Last release: October 2014 (v0.0.7).  Disqua
 Last release: September 2019 (v0.6.3). Only supports RedHat/CentOS. No Debian/Ubuntu support,
 which rules it out entirely for our deployment target.
 
-OpenSIPS and Kamailio are two quite comparable packages, OpenSIPS is said to have a bit easier configuration language.  Claude suggested to "toss a coin", Perplexity claims that "Kamailio prioritizes stability, compatibility, and conservative feature releases, (...) OpenSIPS emphasizes rapid innovation,".  It's a quite simple usecase, it's ultra-sharp production, so "stability, compatibility and conservative feature releases" sounds better than "rapid innovation".
-
-Kamailio is probably overkill for the stated purpose, but some of the feaures are useful for us - we do need metrics, alarms and readiness probe.
-
 ### Decision
 
 Writing a focused, purpose-built module from scratch is faster and produces a better result
@@ -45,7 +41,11 @@ than trying to resurrect either community module.  The new module:
 
 ## Why Kamailio rather than OpenSIPS
 
-Both are production-grade and would work. Kamailio was chosen because:
+OpenSIPS and Kamailio are two quite comparable packages, OpenSIPS is said to have a bit easier configuration language.  Claude suggested to "toss a coin", Perplexity claims that "Kamailio prioritizes stability, compatibility, and conservative feature releases, (...) OpenSIPS emphasizes rapid innovation,".  It's a quite simple usecase, it's ultra-sharp production, so "stability, compatibility and conservative feature releases" sounds better than "rapid innovation".
+
+Kamailio is probably overkill for the stated purpose, but some of the feaures are useful for us - we do need metrics, alarms and readiness probe.
+
+Claude retro-perspectively claims that Kamailio was chosen because:
 
 - Larger community and more third-party documentation/tutorials online
 - More modules in the ecosystem (200+ vs ~120)
