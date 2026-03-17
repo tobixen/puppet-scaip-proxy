@@ -1,16 +1,5 @@
 # Changelog
 
-## [Unreleased]
+## [v0.2.0] - 2026-03-17
 
-### Fixed
-
-- Use `xhttp_prom.so` (base `kamailio` package) instead of `prometheus.so`
-  (absent from Kamailio 6.0 packages on Ubuntu 24.04), fixing startup failure
-  when `metrics_enabled` is `true`.
-- Remove erroneous `kamailio-extra-modules` dependency for metrics; the
-  `xhttp_prom` module ships in the base package.
-
-Initial implementation of the tobixen-scaip_proxy Puppet module.
-
-Written from scratch as a purpose-built SCAIP SIP proxy module.
-See docs/DECISIONS.md for rationale.
+v0.2.0 is the first version that actually works.  I do not deem it important to list up all the changes since the repository was empty - refer to the README to see what the project is supposed to do.
