@@ -18,11 +18,21 @@ log_prefix="{$mt $hdr(CSeq) $ci} "
 # Worker processes — 2 per CPU core is a typical starting point
 children=4
 
-# Internal interface
+# Internal interface (alarm device clients)
 listen=udp:<%= @listen_address %>:<%= @listen_port %>
 listen=tcp:<%= @listen_address %>:<%= @listen_port %>
 <% if @tls_enabled -%>
 listen=tls:<%= @listen_address %>:<%= @listen_tls_port %>
+<% end -%>
+<% if @public_ip != @listen_address && @listen_address != '0.0.0.0' -%>
+
+# External interface — required so Kamailio has a socket bound to the public
+# IP and can use it as the source when establishing outgoing TLS connections
+# to the upstream SCAIP server.
+listen=tcp:<%= @public_ip %>:<%= @listen_port %>
+<% if @tls_enabled -%>
+listen=tls:<%= @public_ip %>:<%= @listen_tls_port %>
+<% end -%>
 <% end -%>
 
 # HTTP port for health/readiness probes and Prometheus metrics
@@ -37,7 +47,6 @@ enable_tls=1
 ####### Modules Section #######
 
 loadmodule "tm.so"
-loadmodule "tmx.so"
 loadmodule "sl.so"
 loadmodule "rr.so"
 loadmodule "pv.so"
@@ -71,11 +80,6 @@ modparam("rr", "enable_full_lr", 1)
 request_route {
     route(REQINIT);
 
-    # Short-circuit retransmissions
-    if (t_precheck_trans()) {
-        t_check_trans();
-        exit;
-    }
     t_check_trans();
 
     # In-dialog requests (ACK, BYE, re-INVITE, etc.)
