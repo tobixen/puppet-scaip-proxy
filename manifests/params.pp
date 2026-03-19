@@ -23,6 +23,11 @@ class scaip_proxy::params {
   # Must be set explicitly via Hiera for each server.
   $public_ip = $facts['networking']['ip']
 
+  # SIP domain (hostname) of this proxy.  Added as a kamailio alias so that
+  # uri==myself correctly matches requests addressed to the proxy by hostname
+  # (e.g. sip:alarm@skyresponse-proxy.example.com).  Defaults to the node FQDN.
+  $sip_domain = $facts['networking']['fqdn']
+
   # Upstream SCAIP server — mandatory, no default
   $upstream_host   = undef
   $upstream_port   = 5061

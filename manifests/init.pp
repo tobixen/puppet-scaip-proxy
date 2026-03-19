@@ -42,6 +42,12 @@
 #   This MUST be set via Hiera per server — the default (primary NIC IP) is
 #   almost certainly wrong for a dual-homed proxy.
 #
+# @param sip_domain
+#   SIP domain (DNS hostname) of this proxy.  Kamailio uses this as an alias
+#   so that uri==myself correctly matches requests addressed to the proxy by
+#   hostname (e.g. sip:alarm@skyresponse-proxy.example.com).  Defaults to the
+#   node FQDN.  Set explicitly if the proxy DNS name differs from the FQDN.
+#
 # @param upstream_host
 #   SCAIP server hostname. Mandatory — no default is provided.
 #
@@ -103,6 +109,7 @@ class scaip_proxy (
   $listen_port      = $scaip_proxy::params::listen_port,
   $listen_tls_port  = $scaip_proxy::params::listen_tls_port,
   $public_ip        = $scaip_proxy::params::public_ip,
+  $sip_domain       = $scaip_proxy::params::sip_domain,
   $upstream_host    = $scaip_proxy::params::upstream_host,
   $upstream_port    = $scaip_proxy::params::upstream_port,
   $upstream_scheme  = $scaip_proxy::params::upstream_scheme,
