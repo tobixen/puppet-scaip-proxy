@@ -7,8 +7,11 @@
 - Rewrite Request-URI domain (`$rd`) and To header to the upstream host
   before forwarding. Previously the proxy hostname leaked into both fields,
   causing the upstream to reject the request with `408 Request Timeout`.
-- Route requests from the upstream (R-URI ≠ myself) directly to the alarm
-  device instead of looping them back to the upstream.
+- Route requests from the upstream (R-URI ≠ myself) back to the alarm
+  device over the device's existing TCP connection using nathelper's
+  alias mechanism (`add_contact_alias` / `set_contact_alias` outbound,
+  `handle_ruri_alias` inbound). Devices do not need to accept inbound
+  TCP; the proxy reuses the connection the device opened.
 - Add `sip_domain` parameter (defaults to node FQDN) and emit it as a
   Kamailio `alias` so that `uri==myself` correctly recognises requests
   addressed to the proxy by its DNS hostname. Without this alias, all

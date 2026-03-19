@@ -98,22 +98,36 @@ request_route {
         record_route();
     }
 
-    # Detect NAT and rewrite the Contact header with our public alias so
-    # that the upstream can reach the client through us on the return path.
-    if (nat_uac_test("19")) {
-        if (is_first_hop()) {
-            set_contact_alias();
-        }
-        setflag(6);
-    }
-
     # Requests addressed to us come from alarm devices and must be forwarded
-    # upstream.  Requests addressed to someone else (e.g. the alarm device's
-    # URI) come from the upstream and must be relayed directly to the device
-    # — not looped back to the upstream.
+    # upstream.  Requests addressed to someone else come from the upstream
+    # and must be routed back to the device via its existing TCP connection.
     if (uri==myself) {
+        # Ensure a Contact header with a connection alias reaches the upstream
+        # so that it can address new requests back through the proxy to this
+        # device.  Alarm devices may omit Contact entirely, hence the two
+        # branches.  We only touch Contact if we are the first hop (avoids
+        # double-aliasing when another proxy sits in front of us).
+        if (is_first_hop()) {
+            if (is_present_hf("Contact")) {
+                set_contact_alias();
+            } else {
+                add_contact_alias();
+            }
+        }
+        if (nat_uac_test("19")) {
+            setflag(6);
+        }
         route(UPSTREAM);
     } else {
+        # Decode the connection alias from the R-URI so we can forward the
+        # request over the device's existing TCP connection rather than
+        # trying to open a new inbound connection through the NAT/firewall.
+        if (!handle_ruri_alias()) {
+            xlog("L_WARN", "Inbound $rm from $si has no connection alias in R-URI"
+                           " — cannot reach device, Call-ID: $ci\n");
+            sl_send_reply("404", "Device Not Reachable");
+            exit;
+        }
         route(RELAY);
     }
 }

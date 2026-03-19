@@ -131,17 +131,19 @@ describe 'scaip_proxy' do
       context 'directional routing' do
         let(:params) { { upstream_host: 'sip.example.com' } }
 
-        # Requests addressed to us (uri==myself) come from alarm devices and go
-        # upstream.  Requests addressed elsewhere come from the upstream and must
-        # be relayed directly to the device, not looped back to the upstream.
         it 'routes to UPSTREAM only when uri==myself' do
           is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
             .with_content(%r{uri==myself\b.*route\(UPSTREAM\)}m)
         end
 
-        it 'relays directly when uri!=myself' do
+        it 'calls handle_ruri_alias for inbound requests from upstream' do
           is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
-            .with_content(%r{uri==myself.*else.*route\(RELAY\)}m)
+            .with_content(%r{handle_ruri_alias})
+        end
+
+        it 'adds a contact alias for devices that omit the Contact header' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{add_contact_alias})
         end
       end
 
