@@ -119,6 +119,7 @@ The `/metrics` endpoint uses the `xhttp_prom` module, which is part of the base
 | `listen_port`     | `5060`                           | SIP UDP/TCP port |
 | `listen_tls_port` | `5061`                           | SIPS TLS port |
 | `public_ip`       | primary NIC IP                   | Public IP for Contact/Via NAT rewriting — **set this explicitly** |
+| `sip_domain`      | node FQDN                        | DNS hostname of this proxy, added as a Kamailio alias so requests addressed by hostname are recognised as local |
 | `upstream_host`   | **required**                     | Upstream SCAIP server hostname |
 | `upstream_port`   | `5061`                           | Upstream SCAIP server port |
 | `upstream_scheme` | `sips`                           | URI scheme for upstream (`sips` or `sip`) |

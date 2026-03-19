@@ -41,6 +41,10 @@ listen=tcp:<%= @listen_address %>:<%= @http_port %>
 
 # Public IP alias used to rewrite Contact and Via headers for NAT
 alias=<%= @public_ip %>
+# SIP domain alias so uri==myself matches requests addressed to the proxy
+# hostname (e.g. sip:alarm@skyresponse-proxy.example.com) in addition to
+# requests addressed to the raw IP.
+alias=<%= @sip_domain %>
 <% if @tls_enabled -%>
 enable_tls=1
 <% end -%>

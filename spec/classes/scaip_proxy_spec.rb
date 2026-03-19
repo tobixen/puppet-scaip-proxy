@@ -119,6 +119,15 @@ describe 'scaip_proxy' do
         end
       end
 
+      context 'with sip_domain' do
+        let(:params) { { upstream_host: 'sip.example.com', sip_domain: 'proxy.example.com' } }
+
+        it 'emits the sip_domain as a kamailio alias' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{^alias=proxy\.example\.com$})
+        end
+      end
+
       context 'directional routing' do
         let(:params) { { upstream_host: 'sip.example.com' } }
 
