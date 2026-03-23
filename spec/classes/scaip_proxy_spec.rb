@@ -118,6 +118,44 @@ describe 'scaip_proxy' do
             .with_content(%r{alias=203\.0\.113\.1})
         end
       end
+
+      context 'directional routing' do
+        let(:params) { { upstream_host: 'sip.example.com' } }
+
+        # Requests addressed to us (uri==myself) come from alarm devices and go
+        # upstream.  Requests addressed elsewhere come from the upstream and must
+        # be relayed directly to the device, not looped back to the upstream.
+        it 'routes to UPSTREAM only when uri==myself' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{uri==myself\b.*route\(UPSTREAM\)}m)
+        end
+
+        it 'relays directly when uri!=myself' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{uri==myself.*else.*route\(RELAY\)}m)
+        end
+      end
+
+      context 'Request-URI and To header rewriting' do
+        let(:params) { { upstream_host: 'sip.example.com' } }
+
+        # The upstream rejects requests with the proxy hostname in the Request-URI
+        # and To header; both must be rewritten to upstream_host before forwarding.
+        it 'rewrites the Request-URI domain to the upstream host' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{\$rd\s*=\s*"sip\.example\.com"})
+        end
+
+        it 'removes the original To header' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{remove_hf\("To"\)})
+        end
+
+        it 'appends a rewritten To header with the upstream host' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{append_hf\("To:.*sip\.example\.com})
+        end
+      end
     end
   end
 end

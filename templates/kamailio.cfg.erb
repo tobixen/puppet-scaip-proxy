@@ -103,7 +103,15 @@ request_route {
         setflag(6);
     }
 
-    route(UPSTREAM);
+    # Requests addressed to us come from alarm devices and must be forwarded
+    # upstream.  Requests addressed to someone else (e.g. the alarm device's
+    # URI) come from the upstream and must be relayed directly to the device
+    # — not looped back to the upstream.
+    if (uri==myself) {
+        route(UPSTREAM);
+    } else {
+        route(RELAY);
+    }
 }
 
 # Initial request sanity checks
@@ -145,7 +153,19 @@ route[WITHINDLG] {
 # Route to the upstream SCAIP server
 route[UPSTREAM] {
     $du = "<%= @upstream_scheme %>:<%= @upstream_host %>:<%= @upstream_port %>;transport=tls";
-    xlog("L_INFO", "Routing $rm from $si to $du — Call-ID: $ci\n");
+
+    # Rewrite the Request-URI domain to the upstream host.  The upstream
+    # rejects requests still addressed to the proxy hostname (408 Timeout).
+    # Use $rd (domain of R-URI) rather than assigning a full string to $ru —
+    # Kamailio does not expand PVs inside string literals assigned to $ru.
+    $rd = "<%= @upstream_host %>";
+
+    # Rewrite the To header domain to match — the upstream also inspects it.
+    $var(to_user) = $tU;
+    remove_hf("To");
+    append_hf("To: <sip:$var(to_user)@<%= @upstream_host %>>\r\n");
+
+    xlog("L_INFO", "Routing $rm from $si to $du (R-URI: $ru) — Call-ID: $ci\n");
     route(RELAY);
 }
 
