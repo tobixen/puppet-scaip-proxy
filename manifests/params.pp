@@ -33,6 +33,8 @@ class scaip_proxy::params {
   $tls_key_file  = '/etc/kamailio/tls/key.pem'
   $tls_ca_file   = undef
 
+  $children     = 4
+  $shm_mem_size = 64
   $debug_level  = 2
   $log_facility = 'LOG_LOCAL0'
 

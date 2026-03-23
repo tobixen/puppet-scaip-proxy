@@ -65,6 +65,14 @@
 #   Path to a CA bundle for verifying the upstream certificate.
 #   Defaults to the system CA bundle (/etc/ssl/certs/ca-certificates.crt).
 #
+# @param children
+#   Number of worker processes per UDP socket. Default 4 (2 per CPU core is
+#   typical). Set to 1 to minimise process count and memory use for debugging.
+#
+# @param shm_mem_size
+#   Shared memory pool size in MB. Default 64. Can be reduced to 8-16 on
+#   memory-constrained nodes or for short debug sessions.
+#
 # @param debug_level
 #   Kamailio debug verbosity (0=emergency .. 9=debug; 2 is suitable for
 #   production, 5+ for troubleshooting).
@@ -102,6 +110,8 @@ class scaip_proxy (
   $tls_cert_file    = $scaip_proxy::params::tls_cert_file,
   $tls_key_file     = $scaip_proxy::params::tls_key_file,
   $tls_ca_file      = $scaip_proxy::params::tls_ca_file,
+  $children         = $scaip_proxy::params::children,
+  $shm_mem_size     = $scaip_proxy::params::shm_mem_size,
   $debug_level      = $scaip_proxy::params::debug_level,
   $log_facility     = $scaip_proxy::params::log_facility,
   $http_port        = $scaip_proxy::params::http_port,
