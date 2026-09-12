@@ -39,6 +39,14 @@ listen=tls:<%= @public_ip %>:<%= @listen_tls_port %>
 # HTTP port for health/readiness probes and Prometheus metrics
 listen=tcp:<%= @listen_address %>:<%= @http_port %>
 
+# Both required by xhttp.  SIP over TCP demands a Content-Length header and
+# an ordinary HTTP GET has none, so without tcp_accept_no_cl the reader
+# discards the request and closes the connection - every endpoint above
+# answers an empty reply.  http_reply_parse stops the modules that parse
+# outgoing messages from logging an error on each non-SIP reply.
+tcp_accept_no_cl=yes
+http_reply_parse=yes
+
 # Public IP alias used to rewrite Contact and Via headers for NAT
 alias=<%= @public_ip %>
 # SIP domain alias so uri==myself matches requests addressed to the proxy

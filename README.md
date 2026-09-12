@@ -104,6 +104,13 @@ Kamailio exposes an HTTP server on port 8080 (configurable via `http_port`):
 The `/metrics` endpoint uses the `xhttp_prom` module, which is part of the base
 `kamailio` package — no additional packages are required.
 
+Serving these requires the core parameters `tcp_accept_no_cl=yes` and
+`http_reply_parse=yes`, which the generated config sets.  Without the former,
+kamailio discards any TCP message that has no `Content-Length` header — which
+is every ordinary HTTP `GET` — and closes the connection, so all three paths
+answer an empty reply.  They are core parameters, so changing them needs a
+kamailio restart, not a reload.
+
 ## Parameters
 
 | Parameter         | Default                          | Description |

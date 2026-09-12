@@ -77,6 +77,24 @@ describe 'scaip_proxy' do
         end
       end
 
+      # Both core parameters exist for xhttp.  HTTP GET requests carry no
+      # Content-Length, which kamailio's TCP reader otherwise rejects - it
+      # closes the connection without a reply, so /health, /ready and
+      # /metrics all look dead to any ordinary HTTP client.
+      context 'xhttp core parameters' do
+        let(:params) { { upstream_host: 'sip.example.com' } }
+
+        it 'accepts TCP messages without a Content-Length header' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{^tcp_accept_no_cl=yes$})
+        end
+
+        it 'parses outgoing non-SIP messages as HTTP' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{^http_reply_parse=yes$})
+        end
+      end
+
       context 'with manage_service => false' do
         let(:params) { { upstream_host: 'sip.example.com', manage_service: false } }
 
