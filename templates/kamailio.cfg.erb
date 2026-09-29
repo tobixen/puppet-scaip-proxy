@@ -44,6 +44,13 @@ listen=tcp:<%= @_http_listen_address %>:<%= @http_port %>
 # discards the request and closes the connection - every endpoint above
 # answers an empty reply.  http_reply_parse stops the modules that parse
 # outgoing messages from logging an error on each non-SIP reply.
+#
+# tcp_accept_no_cl is global: it applies to every TCP and TLS listener, SIP
+# included.  A SIP message without Content-Length is accepted as bodiless
+# instead of the connection being closed; if it had a body, that is read as
+# the next message on the connection.  Accepted: only the offending peer's
+# connection is confused - but for the upstream that is every device's traffic
+# it multiplexes on it.
 tcp_accept_no_cl=yes
 http_reply_parse=yes
 

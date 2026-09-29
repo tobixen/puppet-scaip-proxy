@@ -110,8 +110,20 @@ Serving these requires the core parameters `tcp_accept_no_cl=yes` and
 `http_reply_parse=yes`, which the generated config sets.  Without the former,
 kamailio discards any TCP message that has no `Content-Length` header — which
 is every ordinary HTTP `GET` — and closes the connection, so all three paths
-answer an empty reply.  They are core parameters, so changing them needs a
-kamailio restart, not a reload.
+answer an empty reply.  `tcp_accept_no_cl` can in principle be changed at
+runtime (`kamcmd cfg.set_now_int tcp accept_no_cl 1`), but that needs
+`ctl.so`, which the generated config does not load; `http_reply_parse` cannot.
+So here, changing either means a kamailio restart.
+
+`tcp_accept_no_cl` is not limited to the HTTP port: it relaxes the
+`Content-Length` requirement on every TCP and TLS listener, SIP included.  A
+SIP message without `Content-Length` is accepted as bodiless instead of the
+connection being closed - harmless when it has no body.  When it does have
+one, the body is read as the next message on that connection and routed as a
+SIP message of its own.  That can only confuse the traffic on the offending
+peer's connection - which for a device is its own single transaction, but
+for an upstream that multiplexes many devices' traffic on one connection is
+everything behind it.  The module accepts that.
 
 ## Parameters
 
