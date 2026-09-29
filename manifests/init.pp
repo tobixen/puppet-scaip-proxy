@@ -51,6 +51,17 @@
 # @param upstream_host
 #   SCAIP server hostname. Mandatory — no default is provided.
 #
+# @param upstream_addresses
+#   Source addresses the upstream sends its own requests from (the status
+#   MESSAGE that follows each alarm).  Those arrive over our own upstream
+#   connection addressed to our socket, so uri==myself is true for them;
+#   without this list they are relayed straight back upstream.  With it,
+#   those addressed to the proxy itself are answered with 200 and logged,
+#   and relayed nowhere; one addressed to a device alias still goes to the
+#   device.  Empty (the default) keeps the old behaviour.  IPv4 only.  The
+#   set is the upstream's to change, so it has to be kept in step with its
+#   DNS.
+#
 # @param upstream_port
 #   Upstream SCAIP server port.
 #
@@ -90,6 +101,31 @@
 #   TCP port for the built-in HTTP server that serves /health, /ready, and
 #   /metrics endpoints.
 #
+# @param http_listen_address
+#   Address of that HTTP server.  Defaults to listen_address.  The endpoints
+#   are plain http and unauthenticated, so set it to 127.0.0.1 if
+#   listen_address is routed and nothing outside the node needs them.
+#   IPv4 only.
+#
+# @param tcp_keepalive
+#   TCP keepalive on SIP connections - all of them, device side included.
+#   kamailio enables it by default, but with the kernel's timers (7200 s
+#   idle before the first probe), which is useless for upstream connections
+#   that sit idle for minutes: kamailio's TCP_USER_TIMEOUT only covers data
+#   in flight, so a path that dies while idle is only found by the next
+#   alarm.  With true the three timers below are set; false turns kamailio's
+#   default keepalive off.
+#
+# @param tcp_keepidle
+#   Seconds of idleness before the first probe.  Keep it below the shortest
+#   NAT or firewall idle timeout on the path.
+#
+# @param tcp_keepintvl
+#   Seconds between probes.
+#
+# @param tcp_keepcnt
+#   Unanswered probes before the connection is dropped.
+#
 # @param metrics_enabled
 #   Enable the Prometheus metrics endpoint at /metrics.
 #   Uses xhttp_prom.so, which is included in the base kamailio package.
@@ -113,6 +149,7 @@ class scaip_proxy (
   $upstream_host    = $scaip_proxy::params::upstream_host,
   $upstream_port    = $scaip_proxy::params::upstream_port,
   $upstream_scheme  = $scaip_proxy::params::upstream_scheme,
+  Array[Stdlib::IP::Address::V4::Nosubnet] $upstream_addresses = $scaip_proxy::params::upstream_addresses,
   $tls_enabled      = $scaip_proxy::params::tls_enabled,
   $tls_cert_file    = $scaip_proxy::params::tls_cert_file,
   $tls_key_file     = $scaip_proxy::params::tls_key_file,
@@ -122,6 +159,11 @@ class scaip_proxy (
   $debug_level      = $scaip_proxy::params::debug_level,
   $log_facility     = $scaip_proxy::params::log_facility,
   $http_port        = $scaip_proxy::params::http_port,
+  Optional[Stdlib::IP::Address::V4::Nosubnet] $http_listen_address = undef,
+  Boolean $tcp_keepalive = $scaip_proxy::params::tcp_keepalive,
+  Integer[1] $tcp_keepidle = $scaip_proxy::params::tcp_keepidle,
+  Integer[1] $tcp_keepintvl = $scaip_proxy::params::tcp_keepintvl,
+  Integer[1] $tcp_keepcnt = $scaip_proxy::params::tcp_keepcnt,
   $metrics_enabled  = $scaip_proxy::params::metrics_enabled,
   $extra_packages   = $scaip_proxy::params::extra_packages,
 ) inherits scaip_proxy::params {
@@ -129,6 +171,8 @@ class scaip_proxy (
   if $upstream_host == undef {
     fail('scaip_proxy: upstream_host is required — set it via Hiera or as a class parameter')
   }
+
+  $_http_listen_address = pick($http_listen_address, $listen_address)
 
   $base_packages = $tls_enabled ? {
     true    => ['kamailio', 'kamailio-tls-modules'],

@@ -37,7 +37,7 @@ listen=tls:<%= @public_ip %>:<%= @listen_tls_port %>
 <% end -%>
 
 # HTTP port for health/readiness probes and Prometheus metrics
-listen=tcp:<%= @listen_address %>:<%= @http_port %>
+listen=tcp:<%= @_http_listen_address %>:<%= @http_port %>
 
 # Both required by xhttp.  SIP over TCP demands a Content-Length header and
 # an ordinary HTTP GET has none, so without tcp_accept_no_cl the reader
@@ -46,6 +46,21 @@ listen=tcp:<%= @listen_address %>:<%= @http_port %>
 # outgoing messages from logging an error on each non-SIP reply.
 tcp_accept_no_cl=yes
 http_reply_parse=yes
+
+# TCP keepalive, on every SIP connection.  kamailio enables it by default but
+# with the kernel's timers (first probe after 7200 s idle).  The upstream
+# connections are idle for minutes between alarms, and TCP_USER_TIMEOUT only
+# covers data in flight - without short timers a path that died while idle is
+# found by the next alarm.  Device connections last seconds and never reach
+# the idle time.
+<% if @tcp_keepalive -%>
+tcp_keepalive=yes
+tcp_keepidle=<%= @tcp_keepidle %>
+tcp_keepintvl=<%= @tcp_keepintvl %>
+tcp_keepcnt=<%= @tcp_keepcnt %>
+<% else -%>
+tcp_keepalive=no
+<% end -%>
 
 # Public IP alias used to rewrite Contact and Via headers for NAT
 alias=<%= @public_ip %>
@@ -106,6 +121,17 @@ request_route {
         record_route();
     }
 
+<% unless @upstream_addresses.empty? -%>
+    # Requests from the upstream itself - the status MESSAGE after each
+    # alarm.  It comes back over our own upstream connection with an R-URI
+    # naming our socket, so uri==myself below is true for it too; this test
+    # has to come first.  A request the upstream addresses to a device alias
+    # is not ours to absorb and falls through to the device branch.
+    if ((<%= @upstream_addresses.map { |a| "$si == \"#{a}\"" }.join(' || ') %>) && uri==myself) {
+        route(FROM_UPSTREAM);
+    }
+
+<% end -%>
     # Requests addressed to us come from alarm devices and must be forwarded
     # upstream.  Requests addressed to someone else come from the upstream
     # and must be routed back to the device via its existing TCP connection.
@@ -195,6 +221,18 @@ route[UPSTREAM] {
     route(RELAY);
 }
 
+<% unless @upstream_addresses.empty? -%>
+# Requests originated by the upstream.  They are not delivered to the device
+# (it does not wait for them, and nothing at the SIP layer ties them to its
+# alarm), and not relayed back upstream either: answer and log.  One line per
+# request, with the Call-ID, so they can be paired with the alarms.
+route[FROM_UPSTREAM] {
+    xlog("L_INFO", "Status from $si for R-URI $ru, not relayed - Call-ID: $ci\n");
+    sl_send_reply("200", "OK");
+    exit;
+}
+
+<% end -%>
 # Generic stateful relay
 route[RELAY] {
     if (!t_relay()) {

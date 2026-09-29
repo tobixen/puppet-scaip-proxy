@@ -93,7 +93,9 @@ another Puppet module:
 
 ## Health and metrics endpoints
 
-Kamailio exposes an HTTP server on port 8080 (configurable via `http_port`):
+Kamailio exposes an HTTP server on port 8080 (configurable via `http_port`),
+on `listen_address` unless `http_listen_address` says otherwise.  The
+endpoints are plain http and unauthenticated:
 
 | Path       | Description                                  |
 |------------|----------------------------------------------|
@@ -130,6 +132,7 @@ kamailio restart, not a reload.
 | `upstream_host`   | **required**                     | Upstream SCAIP server hostname |
 | `upstream_port`   | `5061`                           | Upstream SCAIP server port |
 | `upstream_scheme` | `sips`                           | URI scheme for upstream (`sips` or `sip`) |
+| `upstream_addresses` | `[]`                          | IPv4 source addresses of the upstream's own requests; those addressed to the proxy are answered and logged, never relayed (see below) |
 | `tls_enabled`     | `true`                           | Enable TLS/SIPS support |
 | `tls_cert_file`   | `/etc/kamailio/tls/cert.pem`     | TLS certificate PEM path |
 | `tls_key_file`    | `/etc/kamailio/tls/key.pem`      | TLS private key PEM path |
@@ -137,6 +140,9 @@ kamailio restart, not a reload.
 | `debug_level`     | `2`                              | Kamailio verbosity (0=emergency … 9=debug; 5+ for troubleshooting) |
 | `log_facility`    | `LOG_LOCAL0`                     | Syslog facility |
 | `http_port`       | `8080`                           | Port for `/health`, `/ready`, `/metrics` |
+| `http_listen_address` | `listen_address`             | IPv4 address for `/health`, `/ready`, `/metrics`; `127.0.0.1` keeps them off a routed address |
+| `tcp_keepalive`   | `true`                           | Set the keepalive timers below on SIP connections; `false` turns kamailio's default keepalive off |
+| `tcp_keepidle` / `tcp_keepintvl` / `tcp_keepcnt` | `60` / `10` / `3` | Idle seconds before the first probe, seconds between probes, probes before giving up |
 | `metrics_enabled` | `true`                           | Enable Prometheus `/metrics` endpoint |
 | `extra_packages`  | `[]`                             | Additional `kamailio-*` packages to install |
 
@@ -161,6 +167,34 @@ re-establishes the connection. Mitigations:
 - If active pings from the proxy side are required, add `usrloc` and a
   REGISTER handler — but that turns this proxy into a registrar, which is
   a significant scope change.
+
+### Requests from the upstream are not delivered to devices
+
+Some upstreams send a request of their own after each alarm (a status
+MESSAGE).  They send it over the connection the proxy opened to them,
+addressed to the proxy's own socket rather than to the Contact alias the
+proxy supplied, so it cannot be routed to a device - and with
+`uri==myself` true for it, the default configuration relays it straight
+back upstream.  Set `upstream_addresses` to the upstream's addresses to
+answer such requests with `200 OK` and log them ("Status from ... not
+relayed") instead.  Only requests addressed to the proxy itself are
+absorbed; one the upstream addresses to a device alias still goes to the
+device.  The addresses are the upstream's to change; keep the
+list in step with its DNS.
+
+### TCP keepalive
+
+kamailio has TCP keepalive on by default, but with the kernel's timers: the
+first probe after 7200 s idle.  Connections to the upstream are held open and
+idle for minutes between alarms, and kamailio's `TCP_USER_TIMEOUT` only covers
+data in flight, so a path that dies while idle (NAT or firewall state
+expiring, an upstream restart) would only be found by the next alarm, which
+then waits for the timeout.  The module therefore sets `tcp_keepidle`,
+`tcp_keepintvl` and `tcp_keepcnt` (60/10/3 by default); keep `tcp_keepidle`
+below the shortest idle timeout on the path.  The timers apply to every SIP
+connection, device side included - harmless for devices that hang up after a
+few seconds, but a device holding a connection open idle gets probed too.
+`tcp_keepalive => false` turns keepalive off altogether.
 
 ### RTP media relay not included
 

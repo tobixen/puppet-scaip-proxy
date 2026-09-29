@@ -32,6 +32,7 @@ class scaip_proxy::params {
   $upstream_host   = undef
   $upstream_port   = 5061
   $upstream_scheme = 'sips'
+  $upstream_addresses = []
 
   $tls_enabled  = true
   $tls_cert_file = '/etc/kamailio/tls/cert.pem'
@@ -46,6 +47,12 @@ class scaip_proxy::params {
   # HTTP port for /health, /ready, and /metrics endpoints
   $http_port       = 8080
   $metrics_enabled = true
+
+  # TCP keepalive on SIP connections (see init.pp)
+  $tcp_keepalive = true
+  $tcp_keepidle  = 60
+  $tcp_keepintvl = 10
+  $tcp_keepcnt   = 3
 
   # Additional kamailio-* packages to install beyond the base set
   $extra_packages = []

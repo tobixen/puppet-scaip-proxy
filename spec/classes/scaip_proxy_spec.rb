@@ -95,6 +95,117 @@ describe 'scaip_proxy' do
         end
       end
 
+      # The upstream holds idle TLS connections open for minutes.
+      # TCP_USER_TIMEOUT only covers unacknowledged data, so a path that
+      # dies while idle is found by the next alarm, 10 s late.  Keepalive
+      # probes find it first.
+      context 'tcp keepalive' do
+        let(:params) { { upstream_host: 'sip.example.com' } }
+
+        # kamailio's own default is tcp_keepalive=yes; what the module adds
+        # is timers short enough to matter (the kernel waits 7200 s).
+        it 'is on, with short timers, by default' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{^tcp_keepalive=yes$})
+            .with_content(%r{^tcp_keepidle=60$})
+            .with_content(%r{^tcp_keepintvl=10$})
+            .with_content(%r{^tcp_keepcnt=3$})
+        end
+
+        context 'tuned' do
+          let(:params) { { upstream_host: 'sip.example.com', tcp_keepidle: 120, tcp_keepintvl: 5, tcp_keepcnt: 4 } }
+
+          it do
+            is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+              .with_content(%r{^tcp_keepidle=120$})
+              .with_content(%r{^tcp_keepintvl=5$})
+              .with_content(%r{^tcp_keepcnt=4$})
+          end
+        end
+
+        context 'off' do
+          let(:params) { { upstream_host: 'sip.example.com', tcp_keepalive: false } }
+
+          it do
+            is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+              .with_content(%r{^tcp_keepalive=no$})
+              .without_content(%r{^tcp_keepidle=})
+          end
+        end
+      end
+
+      # /health, /ready and /metrics are plain http and unauthenticated;
+      # they need not sit on a routed address.
+      context 'http_listen_address' do
+        context 'by default' do
+          let(:params) { { upstream_host: 'sip.example.com', listen_address: '192.0.2.10' } }
+
+          it 'follows listen_address' do
+            is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+              .with_content(%r{^listen=tcp:192\.0\.2\.10:8080$})
+          end
+        end
+
+        context 'set' do
+          let(:params) { { upstream_host: 'sip.example.com', listen_address: '192.0.2.10', http_listen_address: '127.0.0.1' } }
+
+          it do
+            is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+              .with_content(%r{^listen=tcp:127\.0\.0\.1:8080$})
+              .without_content(%r{^listen=tcp:192\.0\.2\.10:8080$})
+          end
+        end
+      end
+
+      # The upstream sends its status MESSAGE back over our own upstream
+      # connection, with an R-URI naming our socket - so uri==myself is
+      # true and the old test relayed it straight back upstream.  With the
+      # upstream's addresses known, requests from them are answered and
+      # logged, and never relayed.
+      # Both are matched and rendered as IPv4 only: $si is compared as a
+      # string, and listen= takes no brackets.
+      context 'IPv6 addresses' do
+        context 'in upstream_addresses' do
+          let(:params) { { upstream_host: 'sip.example.com', upstream_addresses: ['2001:db8::1'] } }
+
+          it { is_expected.to compile.and_raise_error(/upstream_addresses/) }
+        end
+
+        context 'in http_listen_address' do
+          let(:params) { { upstream_host: 'sip.example.com', http_listen_address: '::1' } }
+
+          it { is_expected.to compile.and_raise_error(/http_listen_address/) }
+        end
+      end
+
+      context 'upstream_addresses' do
+        context 'unset' do
+          let(:params) { { upstream_host: 'sip.example.com' } }
+
+          it do
+            is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+              .without_content(%r{route\(FROM_UPSTREAM\)})
+          end
+        end
+
+        context 'set' do
+          let(:params) { { upstream_host: 'sip.example.com', upstream_addresses: ['203.0.113.1', '203.0.113.2'] } }
+
+          # Only requests the upstream addresses to the proxy itself (the
+          # status names our socket).  One it addresses to a device alias
+          # must still reach the device branch.
+          it 'absorbs only upstream requests addressed to the proxy, before the device branch' do
+            is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+              .with_content(%r{^    if \(\(\$si == "203\.0\.113\.1" \|\| \$si == "203\.0\.113\.2"\) && uri==myself\) \{\n        route\(FROM_UPSTREAM\);\n    \}\n(?:.*\n)*?    if \(uri==myself\) \{$})
+          end
+
+          it 'answers and logs, relaying nothing' do
+            is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+              .with_content(%r{route\[FROM_UPSTREAM\] \{\s*xlog\("L_INFO", "Status from \$si[^\n]*\$ci[^\n]*\);\s*sl_send_reply\("200", "OK"\);\s*exit;\s*\}}m)
+          end
+        end
+      end
+
       context 'with manage_service => false' do
         let(:params) { { upstream_host: 'sip.example.com', manage_service: false } }
 
