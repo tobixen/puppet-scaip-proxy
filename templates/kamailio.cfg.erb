@@ -39,11 +39,13 @@ listen=tls:<%= @public_ip %>:<%= @listen_tls_port %>
 # HTTP port for health/readiness probes and Prometheus metrics
 listen=tcp:<%= @_http_listen_address %>:<%= @http_port %>
 
-# Both required by xhttp.  SIP over TCP demands a Content-Length header and
-# an ordinary HTTP GET has none, so without tcp_accept_no_cl the reader
-# discards the request and closes the connection - every endpoint above
-# answers an empty reply.  http_reply_parse stops the modules that parse
-# outgoing messages from logging an error on each non-SIP reply.
+# Required by xhttp.  SIP over TCP demands a Content-Length header and an
+# ordinary HTTP GET has none, so without tcp_accept_no_cl the reader discards
+# the request and closes the connection - every endpoint above answers an
+# empty reply.  http_reply_parse is deliberately not set: the endpoints work
+# without it, and it would make the SIP listeners accept HTTP status lines.
+# Revisit if siptrace, topoh or an onsend_route is added - modules parsing
+# outgoing messages are what log an error on each xhttp reply without it.
 #
 # tcp_accept_no_cl is global: it applies to every TCP and TLS listener, SIP
 # included.  A SIP message without Content-Length is accepted as bodiless
@@ -52,7 +54,6 @@ listen=tcp:<%= @_http_listen_address %>:<%= @http_port %>
 # connection is confused - but for the upstream that is every device's traffic
 # it multiplexes on it.
 tcp_accept_no_cl=yes
-http_reply_parse=yes
 
 # TCP keepalive, on every SIP connection.  kamailio enables it by default but
 # with the kernel's timers (first probe after 7200 s idle).  The upstream

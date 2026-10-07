@@ -106,14 +106,20 @@ endpoints are plain http and unauthenticated:
 The `/metrics` endpoint uses the `xhttp_prom` module, which is part of the base
 `kamailio` package — no additional packages are required.
 
-Serving these requires the core parameters `tcp_accept_no_cl=yes` and
-`http_reply_parse=yes`, which the generated config sets.  Without the former,
-kamailio discards any TCP message that has no `Content-Length` header — which
-is every ordinary HTTP `GET` — and closes the connection, so all three paths
-answer an empty reply.  `tcp_accept_no_cl` can in principle be changed at
-runtime (`kamcmd cfg.set_now_int tcp accept_no_cl 1`), but that needs
-`ctl.so`, which the generated config does not load; `http_reply_parse` cannot.
-So here, changing either means a kamailio restart.
+Serving these requires the core parameter `tcp_accept_no_cl=yes`, which the
+generated config sets.  Without it, kamailio discards any TCP message that has
+no `Content-Length` header — which is every ordinary HTTP `GET` — and closes
+the connection, so all three paths answer an empty reply.  It can in principle
+be changed at runtime (`kamcmd cfg.set_now_int tcp accept_no_cl 1`), but that
+needs `ctl.so`, which the generated config does not load, so here changing it
+means a kamailio restart.
+
+`http_reply_parse=yes`, often suggested alongside it, is not set: the three
+endpoints answer without it and nothing is logged, and it would make the core
+parser accept an HTTP status line in any message, on the SIP listeners too.
+Revisit this if a module that parses outgoing messages (`siptrace`, `topoh`)
+or an `onsend_route` is added: those are what log an error on each
+xhttp reply.
 
 `tcp_accept_no_cl` is not limited to the HTTP port: it relaxes the
 `Content-Length` requirement on every TCP and TLS listener, SIP included.  A
