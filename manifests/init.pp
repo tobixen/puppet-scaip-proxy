@@ -130,6 +130,17 @@
 #   Enable the Prometheus metrics endpoint at /metrics.
 #   Uses xhttp_prom.so, which is included in the base kamailio package.
 #
+# @param ctl_enabled
+#   Load ctl.so, which gives kamcmd its control socket.  kamailio cannot
+#   reload its routing script, so kamailio.cfg changes still restart the
+#   service, but a tls.cfg change becomes a `kamcmd tls.reload`: it re-reads
+#   tls.cfg and the certificate files it names for new connections and
+#   leaves established ones alone.  The refresh-only
+#   Exec['scaip_proxy tls.reload'] can also be notified from outside, e.g.
+#   by the resource that renews the certificate; it exists only with
+#   manage_service, tls_enabled and ctl_enabled all true.  Turning ctl on
+#   (or off) is itself a restart.
+#
 # @param extra_packages
 #   Additional kamailio-* packages to install (e.g. ['kamailio-utils-modules']).
 #
@@ -165,6 +176,7 @@ class scaip_proxy (
   Integer[1] $tcp_keepintvl = $scaip_proxy::params::tcp_keepintvl,
   Integer[1] $tcp_keepcnt = $scaip_proxy::params::tcp_keepcnt,
   $metrics_enabled  = $scaip_proxy::params::metrics_enabled,
+  Boolean $ctl_enabled = $scaip_proxy::params::ctl_enabled,
   $extra_packages   = $scaip_proxy::params::extra_packages,
 ) inherits scaip_proxy::params {
 
@@ -249,10 +261,27 @@ class scaip_proxy (
       enable => $service_enable,
     }
 
+    $_tls_reload = $ctl_enabled and $tls_enabled
+    if $_tls_reload {
+      exec { 'scaip_proxy tls.reload':
+        command     => 'kamcmd tls.reload',
+        path        => ['/usr/sbin', '/usr/bin', '/sbin', '/bin'],
+        refreshonly => true,
+        # no control socket (stopped, or started before ctl.so): nothing
+        # to reload, and a failing kamcmd would fail the run
+        onlyif      => 'kamcmd core.version',
+        require     => Service['kamailio'],
+      }
+    }
+
     if $manage_config {
       File['/etc/kamailio/kamailio.cfg'] ~> Service['kamailio']
-      File['/etc/kamailio/tls.cfg']      ~> Service['kamailio']
       File['/etc/default/kamailio']      ~> Service['kamailio']
+      if $_tls_reload {
+        File['/etc/kamailio/tls.cfg'] ~> Exec['scaip_proxy tls.reload']
+      } else {
+        File['/etc/kamailio/tls.cfg'] ~> Service['kamailio']
+      }
     }
 
     Package[$all_packages] -> Service['kamailio']

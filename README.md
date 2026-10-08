@@ -91,6 +91,22 @@ another Puppet module:
 | `tls_key_file` | `/etc/kamailio/tls/key.pem`                |
 | `tls_ca_file`  | system CA bundle (`ca-certificates.crt`)   |
 
+kamailio reads the certificate at startup.  With `ctl_enabled` (the default)
+a change to `tls.cfg` runs `kamcmd tls.reload` instead of restarting
+kamailio: new connections get the new configuration and certificate, and
+established ones are left alone.  To pick up a renewed certificate the same
+way, notify the refresh-only `Exec['scaip_proxy tls.reload']` from the
+Puppet resource that renews it:
+
+```puppet
+File['/etc/ssl/private/sip.example.com.pem'] ~> Exec['scaip_proxy tls.reload']
+```
+
+The exec exists only when `manage_service`, `tls_enabled` and `ctl_enabled`
+are all true, and it is skipped when kamailio does not answer `kamcmd`.  A
+certificate renewed outside Puppet (certbot, say) needs its own deploy hook
+running `kamcmd tls.reload`.
+
 ## Health and metrics endpoints
 
 Kamailio exposes an HTTP server on port 8080 (configurable via `http_port`),
@@ -110,9 +126,9 @@ Serving these requires the core parameter `tcp_accept_no_cl=yes`, which the
 generated config sets.  Without it, kamailio discards any TCP message that has
 no `Content-Length` header — which is every ordinary HTTP `GET` — and closes
 the connection, so all three paths answer an empty reply.  It can in principle
-be changed at runtime (`kamcmd cfg.set_now_int tcp accept_no_cl 1`), but that
-needs `ctl.so`, which the generated config does not load, so here changing it
-means a kamailio restart.
+be changed at runtime (`kamcmd cfg.set_now_int tcp accept_no_cl 1`, with
+`ctl_enabled`), but the module does not do that: changing it rewrites
+`kamailio.cfg`, which means a kamailio restart.
 
 `http_reply_parse=yes`, often suggested alongside it, is not set: the three
 endpoints answer without it and nothing is logged, and it would make the core
@@ -162,6 +178,7 @@ everything behind it.  The module accepts that.
 | `tcp_keepalive`   | `true`                           | Set the keepalive timers below on SIP connections; `false` turns kamailio's default keepalive off |
 | `tcp_keepidle` / `tcp_keepintvl` / `tcp_keepcnt` | `60` / `10` / `3` | Idle seconds before the first probe, seconds between probes, probes before giving up |
 | `metrics_enabled` | `true`                           | Enable Prometheus `/metrics` endpoint |
+| `ctl_enabled`     | `true`                           | Load `ctl.so` for `kamcmd`; a `tls.cfg` change becomes a `tls.reload` instead of a restart (see TLS certificates) |
 | `extra_packages`  | `[]`                             | Additional `kamailio-*` packages to install |
 
 ## Limitations and known caveats

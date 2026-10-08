@@ -42,7 +42,10 @@ describe 'scaip_proxy' do
 
         # Config changes should notify the service
         it { is_expected.to contain_file('/etc/kamailio/kamailio.cfg').that_notifies('Service[kamailio]') }
-        it { is_expected.to contain_file('/etc/kamailio/tls.cfg').that_notifies('Service[kamailio]') }
+        # tls.cfg is reloaded through ctl.so instead: a restart drops every
+        # device connection, tls.reload only affects new ones.
+        it { is_expected.to contain_file('/etc/kamailio/tls.cfg').that_notifies('Exec[scaip_proxy tls.reload]') }
+        it { is_expected.not_to contain_file('/etc/kamailio/tls.cfg').that_notifies('Service[kamailio]') }
         it { is_expected.to contain_file('/etc/default/kamailio').that_notifies('Service[kamailio]') }
       end
 
@@ -208,11 +211,57 @@ describe 'scaip_proxy' do
         end
       end
 
+      # ctl.so gives kamcmd a control socket.  kamailio cannot reload its
+      # routing script, but tls.reload re-reads tls.cfg and the certificate
+      # files it names, for new connections, without dropping existing ones.
+      context 'ctl' do
+        context 'by default' do
+          let(:params) { { upstream_host: 'sip.example.com' } }
+
+          it 'loads ctl.so' do
+            is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+              .with_content(%r{^loadmodule "ctl\.so"$})
+          end
+
+          it 'reloads TLS on refresh only, after the service' do
+            is_expected.to contain_exec('scaip_proxy tls.reload')
+              .with_command('kamcmd tls.reload')
+              .with_refreshonly(true)
+              .that_requires('Service[kamailio]')
+          end
+
+          # A stopped kamailio, or one started before ctl.so was loaded, has
+          # no control socket; there is nothing to reload, and a failed
+          # kamcmd would fail the run.
+          it 'skips the reload when kamailio does not answer' do
+            is_expected.to contain_exec('scaip_proxy tls.reload')
+              .with_onlyif('kamcmd core.version')
+          end
+        end
+
+        context 'disabled' do
+          let(:params) { { upstream_host: 'sip.example.com', ctl_enabled: false } }
+
+          it { is_expected.to compile.with_all_deps }
+          it { is_expected.to contain_file('/etc/kamailio/kamailio.cfg').without_content(%r{ctl\.so}) }
+          it { is_expected.not_to contain_exec('scaip_proxy tls.reload') }
+          it { is_expected.to contain_file('/etc/kamailio/tls.cfg').that_notifies('Service[kamailio]') }
+        end
+
+        context 'without TLS' do
+          let(:params) { { upstream_host: 'sip.example.com', tls_enabled: false } }
+
+          it { is_expected.to compile.with_all_deps }
+          it { is_expected.not_to contain_exec('scaip_proxy tls.reload') }
+        end
+      end
+
       context 'with manage_service => false' do
         let(:params) { { upstream_host: 'sip.example.com', manage_service: false } }
 
         it { is_expected.to compile.with_all_deps }
         it { is_expected.not_to contain_service('kamailio') }
+        it { is_expected.not_to contain_exec('scaip_proxy tls.reload') }
       end
 
       context 'with manage_config => false' do

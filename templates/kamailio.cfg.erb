@@ -96,6 +96,11 @@ loadmodule "nathelper.so"
 loadmodule "tls.so"
 <% end -%>
 loadmodule "xhttp.so"
+<% if @ctl_enabled -%>
+# Control socket for kamcmd (tls.reload, inspection); default address
+# unixs:/run/kamailio/kamailio_ctl
+loadmodule "ctl.so"
+<% end -%>
 <% if @metrics_enabled -%>
 # xhttp_prom.so is in the base kamailio package
 loadmodule "xhttp_prom.so"

@@ -48,6 +48,9 @@ class scaip_proxy::params {
   $http_port       = 8080
   $metrics_enabled = true
 
+  # ctl.so control socket for kamcmd (see init.pp)
+  $ctl_enabled = true
+
   # TCP keepalive on SIP connections (see init.pp)
   $tcp_keepalive = true
   $tcp_keepidle  = 60
