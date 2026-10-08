@@ -111,6 +111,9 @@ loadmodule "xhttp_prom.so"
 <% if @tls_enabled -%>
 modparam("tls", "config", "/etc/kamailio/tls.cfg")
 <% end -%>
+<% if @metrics_enabled && !@metrics_stats.empty? -%>
+modparam("xhttp_prom", "xhttp_prom_stats", "<%= @metrics_stats %>")
+<% end -%>
 
 # Full loose-routing ensures in-dialog requests (BYE, re-INVITE, etc.)
 # are routed correctly through the proxy.

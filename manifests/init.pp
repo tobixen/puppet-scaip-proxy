@@ -130,6 +130,11 @@
 #   Enable the Prometheus metrics endpoint at /metrics.
 #   Uses xhttp_prom.so, which is included in the base kamailio package.
 #
+# @param metrics_stats
+#   Which kamailio internal statistics /metrics exports (xhttp_prom's
+#   xhttp_prom_stats: 'all', a group such as 'tm:', or one statistic).
+#   Empty exports none, and /metrics answers "NO User defined metrics".
+#
 # @param ctl_enabled
 #   Load ctl.so, which gives kamcmd its control socket.  kamailio cannot
 #   reload its routing script, so kamailio.cfg changes still restart the
@@ -176,6 +181,7 @@ class scaip_proxy (
   Integer[1] $tcp_keepintvl = $scaip_proxy::params::tcp_keepintvl,
   Integer[1] $tcp_keepcnt = $scaip_proxy::params::tcp_keepcnt,
   $metrics_enabled  = $scaip_proxy::params::metrics_enabled,
+  Pattern[/\A[A-Za-z0-9_.:-]*\z/] $metrics_stats = $scaip_proxy::params::metrics_stats,
   Boolean $ctl_enabled = $scaip_proxy::params::ctl_enabled,
   $extra_packages   = $scaip_proxy::params::extra_packages,
 ) inherits scaip_proxy::params {

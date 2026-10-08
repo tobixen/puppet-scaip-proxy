@@ -69,6 +69,45 @@ describe 'scaip_proxy' do
         end
       end
 
+      # Without xhttp_prom_stats (or prom_counter/prom_gauge definitions)
+      # /metrics answers "NO User defined metrics" - empty.
+      context 'metrics_stats' do
+        context 'by default' do
+          let(:params) { { upstream_host: 'sip.example.com' } }
+
+          it 'exports all internal statistics' do
+            is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+              .with_content(%r{^modparam\("xhttp_prom", "xhttp_prom_stats", "all"\)$})
+          end
+        end
+
+        context 'narrowed' do
+          let(:params) { { upstream_host: 'sip.example.com', metrics_stats: 'tm:' } }
+
+          it do
+            is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+              .with_content(%r{^modparam\("xhttp_prom", "xhttp_prom_stats", "tm:"\)$})
+          end
+        end
+
+        context 'empty' do
+          let(:params) { { upstream_host: 'sip.example.com', metrics_stats: '' } }
+
+          it do
+            is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+              .without_content(%r{xhttp_prom_stats})
+          end
+        end
+
+        # It goes inside a quoted modparam; a quote or a newline would break
+        # kamailio.cfg, and the restart that follows leaves kamailio dead.
+        context 'with a quote in it' do
+          let(:params) { { upstream_host: 'sip.example.com', metrics_stats: 'all")' } }
+
+          it { is_expected.to compile.and_raise_error(%r{metrics_stats}) }
+        end
+      end
+
       context 'with metrics_enabled => false' do
         let(:params) { { upstream_host: 'sip.example.com', metrics_enabled: false } }
 

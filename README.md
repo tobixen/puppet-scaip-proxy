@@ -120,7 +120,10 @@ endpoints are plain http and unauthenticated:
 | `/metrics` | Prometheus metrics (requires `metrics_enabled => true`) |
 
 The `/metrics` endpoint uses the `xhttp_prom` module, which is part of the base
-`kamailio` package — no additional packages are required.
+`kamailio` package — no additional packages are required.  By default
+(`metrics_stats => 'all'`) it exports every internal statistic, memory and
+connection counts included, to anyone who reaches the port: bind it to
+`127.0.0.1` with `http_listen_address`, or firewall it.
 
 Serving these requires the core parameter `tcp_accept_no_cl=yes`, which the
 generated config sets.  Without it, kamailio discards any TCP message that has
@@ -178,6 +181,7 @@ everything behind it.  The module accepts that.
 | `tcp_keepalive`   | `true`                           | Set the keepalive timers below on SIP connections; `false` turns kamailio's default keepalive off |
 | `tcp_keepidle` / `tcp_keepintvl` / `tcp_keepcnt` | `60` / `10` / `3` | Idle seconds before the first probe, seconds between probes, probes before giving up |
 | `metrics_enabled` | `true`                           | Enable Prometheus `/metrics` endpoint |
+| `metrics_stats`   | `all`                            | kamailio internal statistics exported on `/metrics` (`all`, a group such as `tm:`, or one statistic; empty for none) |
 | `ctl_enabled`     | `true`                           | Load `ctl.so` for `kamcmd`; a `tls.cfg` change becomes a `tls.reload` instead of a restart (see TLS certificates) |
 | `extra_packages`  | `[]`                             | Additional `kamailio-*` packages to install |
 

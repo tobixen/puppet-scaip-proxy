@@ -47,6 +47,7 @@ class scaip_proxy::params {
   # HTTP port for /health, /ready, and /metrics endpoints
   $http_port       = 8080
   $metrics_enabled = true
+  $metrics_stats   = 'all'
 
   # ctl.so control socket for kamcmd (see init.pp)
   $ctl_enabled = true
