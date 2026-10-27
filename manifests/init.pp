@@ -48,6 +48,18 @@
 #   hostname (e.g. sip:alarm@skyresponse-proxy.example.com).  Defaults to the
 #   node FQDN.  Set explicitly if the proxy DNS name differs from the FQDN.
 #
+# @param additional_aliases
+#   Further DNS names the proxy answers to, each emitted as a kamailio alias
+#   next to sip_domain.  A device addressing the proxy by a name that is
+#   not an alias gets 404 Device Not Reachable, so list every name that
+#   points at this node, e.g. while a name is being moved between nodes.
+#
+# @param log_alarm_fields
+#   Add the SCAIP message type (mty), status code (stc) and reference
+#   (ref) of the XML body to the log line of each message routed upstream,
+#   and of each status from the upstream.  The caller id (cid) is a
+#   subscriber's number and is never logged.
+#
 # @param upstream_host
 #   SCAIP server hostname. Mandatory — no default is provided.
 #
@@ -162,6 +174,8 @@ class scaip_proxy (
   $listen_tls_port  = $scaip_proxy::params::listen_tls_port,
   $public_ip        = $scaip_proxy::params::public_ip,
   $sip_domain       = $scaip_proxy::params::sip_domain,
+  Array[Stdlib::Fqdn] $additional_aliases = [],
+  Boolean $log_alarm_fields = true,
   $upstream_host    = $scaip_proxy::params::upstream_host,
   $upstream_port    = $scaip_proxy::params::upstream_port,
   $upstream_scheme  = $scaip_proxy::params::upstream_scheme,

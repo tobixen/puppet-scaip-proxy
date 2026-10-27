@@ -245,7 +245,7 @@ describe 'scaip_proxy' do
 
           it 'answers and logs, relaying nothing' do
             is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
-              .with_content(%r{route\[FROM_UPSTREAM\] \{\s*xlog\("L_INFO", "Status from \$si[^\n]*\$ci[^\n]*\);\s*sl_send_reply\("200", "OK"\);\s*exit;\s*\}}m)
+              .with_content(%r{route\[FROM_UPSTREAM\] \{\s*(?:route\(BODYFIELDS\);\s*)?xlog\("L_INFO", "Status from \$si[^\n]*\$ci[^\n]*\);\s*sl_send_reply\("200", "OK"\);\s*exit;\s*\}}m)
           end
         end
       end
@@ -344,6 +344,63 @@ describe 'scaip_proxy' do
         it 'emits the sip_domain as a kamailio alias' do
           is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
             .with_content(%r{^alias=proxy\.example\.com$})
+        end
+      end
+
+      context 'with additional_aliases' do
+        let(:params) do
+          { upstream_host: 'sip.example.com', sip_domain: 'proxy.example.com',
+            additional_aliases: ['test.example.com', 'old.example.com'] }
+        end
+
+        it 'emits each name as a kamailio alias next to sip_domain' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{^alias=proxy\.example\.com$})
+            .with_content(%r{^alias=test\.example\.com$})
+            .with_content(%r{^alias=old\.example\.com$})
+        end
+      end
+
+      context 'without additional_aliases' do
+        let(:params) { { upstream_host: 'sip.example.com', sip_domain: 'proxy.example.com' } }
+
+        it 'emits only sip_domain and the public ip' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{\A(?:(?!^alias=).)*^alias=[^\n]*\n(?:(?!^alias=).)*^alias=proxy\.example\.com\n(?:(?!^alias=).)*\z}m)
+        end
+      end
+
+      context 'log of the alarm fields' do
+        let(:params) { { upstream_host: 'sip.example.com' } }
+
+        it 'adds type, status code and ref to the routing line' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{route\[BODYFIELDS\]})
+            .with_content(%r{Routing \$rm from \$si to \$du .*\$var\(fields\)})
+        end
+
+        %w[mty stc ref].each do |field|
+          it "extracts #{field} only behind its own guard" do
+            is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+              .with_content(%r{^    if \(\$rb =~ "<#{field}>[^"\n]*"\) \{\n        \$var\(fields\) = [^\n]*re\.subst,[^\n]*<#{field}>[^\n]*\n    \}$})
+          end
+        end
+
+        # re.subst returns the whole body, cid and all, when its pattern
+        # does not match.
+        it 'never logs the cid: every re.subst sits behind a guard' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .without_content(%r{^(?!    if \(\$rb =~ ")[^\n]*\n(?!\s*#)[^\n]*re\.subst})
+        end
+
+        context 'with log_alarm_fields false' do
+          let(:params) { { upstream_host: 'sip.example.com', log_alarm_fields: false } }
+
+          it 'leaves the routing line as it was' do
+            is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+              .without_content(%r{BODYFIELDS})
+              .with_content(%r{Routing \$rm from \$si to \$du \(R-URI: \$ru\) — Call-ID: \$ci\\n})
+          end
         end
       end
 

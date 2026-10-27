@@ -166,6 +166,8 @@ everything behind it.  The module accepts that.
 | `listen_tls_port` | `5061`                           | SIPS TLS port |
 | `public_ip`       | primary NIC IP                   | Public IP for Contact/Via NAT rewriting — **set this explicitly** |
 | `sip_domain`      | node FQDN                        | DNS hostname of this proxy, added as a Kamailio alias so requests addressed by hostname are recognised as local |
+| `additional_aliases` | `[]` | Further DNS names the proxy answers to, each a Kamailio alias; a name that is not an alias gets `404 Device Not Reachable` |
+| `log_alarm_fields` | `true` | Add `mty` (message type), `stc` (status code) and `ref` from the SCAIP body to the log line of each message routed upstream, and of each status from the upstream; never the caller id (`cid`) |
 | `upstream_host`   | **required**                     | Upstream SCAIP server hostname |
 | `upstream_port`   | `5061`                           | Upstream SCAIP server port |
 | `upstream_scheme` | `sips`                           | URI scheme for upstream (`sips` or `sip`) |

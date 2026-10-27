@@ -76,6 +76,9 @@ alias=<%= @public_ip %>
 # hostname (e.g. sip:alarm@skyresponse-proxy.example.com) in addition to
 # requests addressed to the raw IP.
 alias=<%= @sip_domain %>
+<% @additional_aliases.each do |name| -%>
+alias=<%= name %>
+<% end -%>
 <% if @tls_enabled -%>
 enable_tls=1
 <% end -%>
@@ -218,6 +221,27 @@ route[WITHINDLG] {
     exit;
 }
 
+<% if @log_alarm_fields -%>
+# Fields of the SCAIP body worth having in the log: the message type (ME alarm,
+# PI heartbeat), the status code (e.g. 0010 manual alarm) and the device's
+# reference counter, which pairs a message with its status and shows a resend.
+# Each is extracted only when present: re.subst returns the whole body when
+# the pattern does not match, and the body holds the subscriber's number (cid),
+# which must not reach the log.
+route[BODYFIELDS] {
+    $var(fields) = "";
+    if ($rb =~ "<mty>[A-Za-z]+</mty>") {
+        $var(fields) = $var(fields) + " mty=" + $(rb{re.subst,/^.*<mty>([A-Za-z]+)<\/mty>.*$/\1/});
+    }
+    if ($rb =~ "<stc>[0-9]+</stc>") {
+        $var(fields) = $var(fields) + " stc=" + $(rb{re.subst,/^.*<stc>([0-9]+)<\/stc>.*$/\1/});
+    }
+    if ($rb =~ "<ref>[0-9]+</ref>") {
+        $var(fields) = $var(fields) + " ref=" + $(rb{re.subst,/^.*<ref>([0-9]+)<\/ref>.*$/\1/});
+    }
+}
+
+<% end -%>
 # Route to the upstream SCAIP server
 route[UPSTREAM] {
     $du = "<%= @upstream_scheme %>:<%= @upstream_host %>:<%= @upstream_port %>;transport=tls";
@@ -233,7 +257,12 @@ route[UPSTREAM] {
     remove_hf("To");
     append_hf("To: <sip:$var(to_user)@<%= @upstream_host %>>\r\n");
 
+<% if @log_alarm_fields -%>
+    route(BODYFIELDS);
+    xlog("L_INFO", "Routing $rm from $si to $du (R-URI: $ru) — Call-ID: $ci$var(fields)\n");
+<% else -%>
     xlog("L_INFO", "Routing $rm from $si to $du (R-URI: $ru) — Call-ID: $ci\n");
+<% end -%>
     route(RELAY);
 }
 
@@ -243,7 +272,12 @@ route[UPSTREAM] {
 # alarm), and not relayed back upstream either: answer and log.  One line per
 # request, with the Call-ID, so they can be paired with the alarms.
 route[FROM_UPSTREAM] {
+<% if @log_alarm_fields -%>
+    route(BODYFIELDS);
+    xlog("L_INFO", "Status from $si for R-URI $ru, not relayed - Call-ID: $ci$var(fields)\n");
+<% else -%>
     xlog("L_INFO", "Status from $si for R-URI $ru, not relayed - Call-ID: $ci\n");
+<% end -%>
     sl_send_reply("200", "OK");
     exit;
 }
