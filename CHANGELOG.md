@@ -8,6 +8,9 @@ This is the first version that actually works.  I do not deem it important to li
   clients; they used to return an empty reply
 * New parameter `upstream_addresses`: requests from the upstream addressed to
   the proxy itself are answered and logged instead of being relayed back to it
+* Requests not addressed to the proxy are only routed to a device when they
+  come from `upstream_addresses`; everyone else gets `403 Forbidden`.  The
+  proxy was an open relay: a `;alias=` in the R-URI can name any address
 * New parameter `additional_aliases`: more DNS names the proxy answers to, next
   to `sip_domain`
 * The log line of each message routed upstream, and of each status from the

@@ -166,7 +166,7 @@ everything behind it.  The module accepts that.
 | `listen_tls_port` | `5061`                           | SIPS TLS port |
 | `public_ip`       | primary NIC IP                   | Public IP for Contact/Via NAT rewriting — **set this explicitly** |
 | `sip_domain`      | node FQDN                        | DNS hostname of this proxy, added as a Kamailio alias so requests addressed by hostname are recognised as local |
-| `additional_aliases` | `[]` | Further DNS names the proxy answers to, each a Kamailio alias; a name that is not an alias gets `404 Device Not Reachable` |
+| `additional_aliases` | `[]` | Further DNS names the proxy answers to, each a Kamailio alias; a request to a name that is not an alias gets `403 Forbidden` |
 | `log_alarm_fields` | `true` | Add `mty` (message type), `stc` (status code) and `ref` from the SCAIP body to the log line of each message routed upstream, and of each status from the upstream; never the caller id (`cid`) |
 | `upstream_host`   | **required**                     | Upstream SCAIP server hostname |
 | `upstream_port`   | `5061`                           | Upstream SCAIP server port |
@@ -223,8 +223,14 @@ absorbed; one the upstream addresses to a device alias still goes to the
 device.  The proxy's own socket is the source of its connection to the
 upstream, the node IP, so that is a Kamailio alias too when `public_ip`
 differs from it; without `upstream_addresses` such a status is then
-relayed back upstream rather than failing.  The addresses are the upstream's to change; keep the
-list in step with its DNS.
+relayed back upstream rather than failing.  The addresses are the
+upstream's to change; keep the list in step with its DNS.
+
+A request that is not addressed to the proxy is only routed to a device
+when it comes from `upstream_addresses`; everyone else gets `403
+Forbidden`.  The device is named by a `;alias=` in the R-URI, which can
+name any address, so without that check the proxy would be an open relay.
+Without `upstream_addresses` no request reaches a device.
 
 ### TCP keepalive
 

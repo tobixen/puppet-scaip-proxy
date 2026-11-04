@@ -439,14 +439,26 @@ describe 'scaip_proxy' do
             .with_content(%r{uri==myself\b.*route\(UPSTREAM\)}m)
         end
 
-        it 'calls handle_ruri_alias for inbound requests from upstream' do
-          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
-            .with_content(%r{handle_ruri_alias})
-        end
-
         it 'adds a contact alias for devices that omit the Contact header' do
           is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
             .with_content(%r{add_contact_alias})
+        end
+
+        # Without upstream_addresses nobody may use the device branch: an
+        # R-URI ;alias= names any address, so it would be an open relay.
+        it 'refuses requests not addressed to the proxy' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .without_content(%r{handle_ruri_alias})
+            .with_content(%r{^        route\(UPSTREAM\);\n    \}\n(?:(?!route\(RELAY\)).)*sl_send_reply\("403", "Forbidden"\);\n    exit;\n\}}m)
+        end
+
+        context 'with upstream_addresses' do
+          let(:params) { { upstream_host: 'sip.example.com', upstream_addresses: ['203.0.113.1', '203.0.113.2'] } }
+
+          it 'reaches a device alias only for requests from the upstream, and refuses the rest' do
+            is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+              .with_content(%r{^    if \(\$si == "203\.0\.113\.1" \|\| \$si == "203\.0\.113\.2"\) \{\n(?:        [^\n]*\n|\n)*?        if \(!handle_ruri_alias\(\)\) \{\n(?:.*\n)*?        route\(RELAY\);\n    \}\n(?:(?!route\(RELAY\)).)*sl_send_reply\("403", "Forbidden"\);\n    exit;\n\}}m)
+          end
         end
       end
 

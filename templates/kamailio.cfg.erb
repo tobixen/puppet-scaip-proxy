@@ -28,7 +28,8 @@ listen=tls:<%= @listen_address %>:<%= @listen_tls_port %>
 
 # External interface — required so Kamailio has a socket bound to the public
 # IP and can use it as the source when establishing outgoing TLS connections
-# to the upstream SCAIP server.
+# to the upstream SCAIP server.  It accepts inbound SIP as well, UDP
+# included, like the internal one.
 listen=udp:<%= @public_ip %>:<%= @listen_port %>
 listen=tcp:<%= @public_ip %>:<%= @listen_port %>
 <% if @tls_enabled -%>
@@ -157,8 +158,8 @@ request_route {
 
 <% end -%>
     # Requests addressed to us come from alarm devices and must be forwarded
-    # upstream.  Requests addressed to someone else come from the upstream
-    # and must be routed back to the device via its existing TCP connection.
+    # upstream.  Requests addressed to someone else are only taken from the
+    # upstream, and routed back to the device via its existing TCP connection.
     if (uri==myself) {
         # Ensure a Contact header with a connection alias reaches the upstream
         # so that it can address new requests back through the proxy to this
@@ -176,7 +177,9 @@ request_route {
             setflag(6);
         }
         route(UPSTREAM);
-    } else {
+    }
+<% unless @upstream_addresses.empty? -%>
+    if (<%= @upstream_addresses.map { |a| "$si == \"#{a}\"" }.join(' || ') %>) {
         # Decode the connection alias from the R-URI so we can forward the
         # request over the device's existing TCP connection rather than
         # trying to open a new inbound connection through the NAT/firewall.
@@ -188,6 +191,12 @@ request_route {
         }
         route(RELAY);
     }
+<% end -%>
+    # Anyone else could name any address in an R-URI ;alias= and use the
+    # proxy as an open relay.
+    xlog("L_WARN", "Refused $rm from $si to $ru, not addressed to the proxy - Call-ID: $ci\n");
+    sl_send_reply("403", "Forbidden");
+    exit;
 }
 
 # Initial request sanity checks
