@@ -338,6 +338,33 @@ describe 'scaip_proxy' do
         end
       end
 
+      # The upstream addresses its status to the source of our outbound
+      # connection, the node IP, not public_ip.
+      context 'with public_ip other than the node IP' do
+        let(:facts) { os_facts.merge(networking: os_facts[:networking].merge(ip: '198.51.100.7')) }
+        let(:params) do
+          { upstream_host: 'sip.example.com', public_ip: '203.0.113.1', upstream_addresses: ['192.0.2.9'] }
+        end
+
+        it 'emits the node IP as an alias too, so the status is absorbed' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{^alias=203\.0\.113\.1$})
+            .with_content(%r{^alias=198\.51\.100\.7$})
+            .with_content(%r{^    if \(\(\$si == "192\.0\.2\.9"\) && uri==myself\) \{\n        route\(FROM_UPSTREAM\);})
+        end
+      end
+
+      context 'without a node IP fact' do
+        let(:facts) { os_facts.merge(networking: os_facts[:networking].reject { |k, _| k.to_s == 'ip' }) }
+        let(:params) { { upstream_host: 'sip.example.com', public_ip: '203.0.113.1' } }
+
+        it 'emits no empty alias' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{^alias=203\.0\.113\.1$})
+            .without_content(%r{^alias=$})
+        end
+      end
+
       context 'with sip_domain' do
         let(:params) { { upstream_host: 'sip.example.com', sip_domain: 'proxy.example.com' } }
 

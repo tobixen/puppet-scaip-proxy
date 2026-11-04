@@ -220,7 +220,10 @@ back upstream.  Set `upstream_addresses` to the upstream's addresses to
 answer such requests with `200 OK` and log them ("Status from ... not
 relayed") instead.  Only requests addressed to the proxy itself are
 absorbed; one the upstream addresses to a device alias still goes to the
-device.  The addresses are the upstream's to change; keep the
+device.  The proxy's own socket is the source of its connection to the
+upstream, the node IP, so that is a Kamailio alias too when `public_ip`
+differs from it; without `upstream_addresses` such a status is then
+relayed back upstream rather than failing.  The addresses are the upstream's to change; keep the
 list in step with its DNS.
 
 ### TCP keepalive

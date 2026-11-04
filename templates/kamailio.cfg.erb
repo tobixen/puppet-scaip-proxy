@@ -72,6 +72,11 @@ tcp_keepalive=no
 
 # Public IP alias used to rewrite Contact and Via headers for NAT
 alias=<%= @public_ip %>
+<% if @_node_ip && @_node_ip != @public_ip -%>
+# The upstream addresses its status to the source of our connection to it,
+# the node IP, not public_ip.
+alias=<%= @_node_ip %>
+<% end -%>
 # SIP domain alias so uri==myself matches requests addressed to the proxy
 # hostname (e.g. sip:alarm@skyresponse-proxy.example.com) in addition to
 # requests addressed to the raw IP.

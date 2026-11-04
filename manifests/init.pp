@@ -205,6 +205,9 @@ class scaip_proxy (
   }
 
   $_http_listen_address = pick($http_listen_address, $listen_address)
+  # Source address of our connections to the upstream, which addresses its
+  # status back to it.
+  $_node_ip = $facts['networking']['ip']
 
   $base_packages = $tls_enabled ? {
     true    => ['kamailio', 'kamailio-tls-modules'],
