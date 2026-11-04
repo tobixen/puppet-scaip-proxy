@@ -374,6 +374,16 @@ describe 'scaip_proxy' do
         end
       end
 
+      context 'without sip_domain or an fqdn fact' do
+        let(:facts) { os_facts.merge(networking: os_facts[:networking].reject { |k, _| k.to_s == 'fqdn' }) }
+        let(:params) { { upstream_host: 'sip.example.com' } }
+
+        it 'emits no empty alias' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .without_content(%r{^alias=$})
+        end
+      end
+
       context 'with additional_aliases' do
         let(:params) do
           { upstream_host: 'sip.example.com', sip_domain: 'proxy.example.com',

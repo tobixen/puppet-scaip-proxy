@@ -79,9 +79,11 @@ alias=<%= @public_ip %>
 alias=<%= @_node_ip %>
 <% end -%>
 # SIP domain alias so uri==myself matches requests addressed to the proxy
-# hostname (e.g. sip:alarm@skyresponse-proxy.example.com) in addition to
-# requests addressed to the raw IP.
+# hostname (e.g. sip:alarm@proxy.example.com) in addition to requests
+# addressed to the raw IP.
+<% if @sip_domain -%>
 alias=<%= @sip_domain %>
+<% end -%>
 <% @additional_aliases.each do |name| -%>
 alias=<%= name %>
 <% end -%>
