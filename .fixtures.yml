@@ -1,10 +1,12 @@
 fixtures:
-  forge_modules:
+  # From git rather than the forge: puppet 8.10 fails to unpack forge
+  # tarballs on Ruby 3.4 (Errno::EBADF in closedir)
+  repositories:
     stdlib:
-      repo: puppetlabs/stdlib
-      ref: "9.0.0"
+      repo: https://github.com/puppetlabs/puppetlabs-stdlib.git
+      ref: v9.0.0
     apt:
-      repo: puppetlabs/apt
-      ref: "9.4.0"
+      repo: https://github.com/puppetlabs/puppetlabs-apt.git
+      ref: v9.4.0
   symlinks:
     scaip_proxy: "#{source_dir}"
