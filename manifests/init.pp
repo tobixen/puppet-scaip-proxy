@@ -45,7 +45,7 @@
 # @param sip_domain
 #   SIP domain (DNS hostname) of this proxy.  Kamailio uses this as an alias
 #   so that uri==myself correctly matches requests addressed to the proxy by
-#   hostname (e.g. sip:alarm@skyresponse-proxy.example.com).  Defaults to the
+#   hostname (e.g. sip:alarm@scaip-proxy.example.com).  Defaults to the
 #   node FQDN.  Set explicitly if the proxy DNS name differs from the FQDN.
 #
 # @param additional_aliases

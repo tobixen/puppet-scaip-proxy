@@ -1,4 +1,4 @@
-I have some clients on a network not routed to the internet (with IPv4 RFC1918-addresses) that should be allowed to communicate with a SCAIP/SIP server (Skyresponse - scaips://prod2.voip.skyresponse.com:5061).
+I have some clients on a network not routed to the internet (with IPv4 RFC1918-addresses) that should be allowed to communicate with a SCAIP/SIP server (e.g. scaips://sip.example.com:5061).
 
 * An idea is to have a SIP proxy standing on a server that is attached both to the isolated networ and to internet, which may receive the SIP traffic and forward it on to the endpoint.  Is this feasable?
 * Does there exist any working software out there that can be used as-is or as a starting point?  Please do a review of the projects at https://siproxd.sourceforge.io/ and https://www.kamailio.org/w/ and consider if there are any other open source software that can be used for this purpose.
