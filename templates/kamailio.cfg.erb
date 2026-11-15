@@ -1,5 +1,5 @@
 #!KAMAILIO
-# SCAIP SIP Proxy — managed by Puppet, do not edit manually.
+# SCAIP SIP Proxy - managed by Puppet, do not edit manually.
 #
 # Forwards SIP/SIPS traffic from internal RFC1918 alarm devices to the
 # upstream SCAIP server over TLS.
@@ -15,7 +15,7 @@ log_stderror=no
 log_facility=<%= @log_facility %>
 log_prefix="{$mt $hdr(CSeq) $ci} "
 
-# Worker processes — 2 per CPU core is a typical starting point
+# Worker processes - 2 per CPU core is a typical starting point
 children=<%= @children %>
 
 # Internal interface (alarm device clients)
@@ -26,7 +26,7 @@ listen=tls:<%= @listen_address %>:<%= @listen_tls_port %>
 <% end -%>
 <% if @public_ip != @listen_address && @listen_address != '0.0.0.0' -%>
 
-# External interface — required so Kamailio has a socket bound to the public
+# External interface - required so Kamailio has a socket bound to the public
 # IP and can use it as the source when establishing outgoing TLS connections
 # to the upstream SCAIP server.  It accepts inbound SIP as well, UDP
 # included, like the internal one.
@@ -187,7 +187,7 @@ request_route {
         # trying to open a new inbound connection through the NAT/firewall.
         if (!handle_ruri_alias()) {
             xlog("L_WARN", "Inbound $rm from $si has no connection alias in R-URI"
-                           " — cannot reach device, Call-ID: $ci\n");
+                           " - cannot reach device, Call-ID: $ci\n");
             sl_send_reply("404", "Device Not Reachable");
             exit;
         }
@@ -204,7 +204,7 @@ request_route {
 # Initial request sanity checks
 route[REQINIT] {
     if (!sanity_check("1511", "7")) {
-        xlog("L_WARN", "Malformed SIP message from $si:$sp — dropping\n");
+        xlog("L_WARN", "Malformed SIP message from $si:$sp - dropping\n");
         exit;
     }
 
@@ -264,20 +264,20 @@ route[UPSTREAM] {
 
     # Rewrite the Request-URI domain to the upstream host.  The upstream
     # rejects requests still addressed to the proxy hostname (408 Timeout).
-    # Use $rd (domain of R-URI) rather than assigning a full string to $ru —
+    # Use $rd (domain of R-URI) rather than assigning a full string to $ru -
     # Kamailio does not expand PVs inside string literals assigned to $ru.
     $rd = "<%= @upstream_host %>";
 
-    # Rewrite the To header domain to match — the upstream also inspects it.
+    # Rewrite the To header domain to match - the upstream also inspects it.
     $var(to_user) = $tU;
     remove_hf("To");
     append_hf("To: <sip:$var(to_user)@<%= @upstream_host %>>\r\n");
 
 <% if @log_alarm_fields -%>
     route(BODYFIELDS);
-    xlog("L_INFO", "Routing $rm from $si to $du (R-URI: $ru) — Call-ID: $ci$var(fields)\n");
+    xlog("L_INFO", "Routing $rm from $si to $du (R-URI: $ru) - Call-ID: $ci$var(fields)\n");
 <% else -%>
-    xlog("L_INFO", "Routing $rm from $si to $du (R-URI: $ru) — Call-ID: $ci\n");
+    xlog("L_INFO", "Routing $rm from $si to $du (R-URI: $ru) - Call-ID: $ci\n");
 <% end -%>
     route(RELAY);
 }

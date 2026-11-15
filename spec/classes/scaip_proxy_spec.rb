@@ -47,6 +47,16 @@ describe 'scaip_proxy' do
         it { is_expected.to contain_file('/etc/kamailio/tls.cfg').that_notifies('Exec[scaip_proxy tls.reload]') }
         it { is_expected.not_to contain_file('/etc/kamailio/tls.cfg').that_notifies('Service[kamailio]') }
         it { is_expected.to contain_file('/etc/default/kamailio').that_notifies('Service[kamailio]') }
+
+        # A puppet agent under a C/POSIX locale reads the diff of a non-ASCII
+        # file as invalid US-ASCII and shows "Binary files ... differ"
+        # instead of the diff.
+        ['/etc/kamailio/kamailio.cfg', '/etc/kamailio/tls.cfg', '/etc/default/kamailio'].each do |path|
+          it "renders #{path} as pure ASCII" do
+            content = catalogue.resource('file', path)[:content]
+            expect(content.b).not_to match(%r{[^\x00-\x7F]}n)
+          end
+        end
       end
 
       context 'with manage_repo => false' do
@@ -436,7 +446,7 @@ describe 'scaip_proxy' do
           it 'leaves the routing line as it was' do
             is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
               .without_content(%r{BODYFIELDS})
-              .with_content(%r{Routing \$rm from \$si to \$du \(R-URI: \$ru\) — Call-ID: \$ci\\n})
+              .with_content(%r{Routing \$rm from \$si to \$du \(R-URI: \$ru\) - Call-ID: \$ci\\n})
           end
         end
       end
@@ -492,6 +502,14 @@ describe 'scaip_proxy' do
             .with_content(%r{append_hf\("To:.*sip\.example\.com})
         end
       end
+    end
+  end
+
+  # The catalogue checks above see only the template branches their
+  # parameters render; the sources themselves must be ASCII throughout.
+  Dir[File.expand_path('../../templates/*', __dir__)].each do |template|
+    it "keeps #{File.basename(template)} pure ASCII" do
+      expect(File.binread(template)).not_to match(%r{[^\x00-\x7F]}n)
     end
   end
 end
