@@ -241,19 +241,36 @@ route[WITHINDLG] {
 # Fields of the SCAIP body worth having in the log: the message type (ME alarm,
 # PI heartbeat), the status code (e.g. 0010 manual alarm) and the device's
 # reference counter, which pairs a message with its status and shows a resend.
-# Each is extracted only when present: re.subst returns the whole body when
-# the pattern does not match, and the body holds the subscriber's number (cid),
-# which must not reach the log.
+# kamailio's regexes do not cross a newline, so on a multi-line body re.subst
+# would replace only the line it matched and keep the rest of the body around
+# the field: the fields are taken from a one-line copy, with every run of
+# control characters (CR, LF, tab) collapsed to a space.  The body holds the
+# subscriber's number (cid), which must not reach the log, and re.subst returns
+# its whole input when the pattern does not match - so each pattern matches any
+# one-line string, yielding the field's value or nothing; and the field is
+# logged only when it has the value's shape, in case one fails to match after
+# all (=~ is case-insensitive, so [a-z] takes upper case too).  No =~ guard
+# before the extraction: it is case-insensitive while re.subst is not, and
+# <MTY> got past one to log the whole body.  The i flag extracts upper-case
+# tags too.  Nothing is done for a bodyless request: a transformation on an
+# empty value logs an error.
 route[BODYFIELDS] {
     $var(fields) = "";
-    if ($rb =~ "<mty>[A-Za-z]+</mty>") {
-        $var(fields) = $var(fields) + " mty=" + $(rb{re.subst,/^.*<mty>([A-Za-z]+)<\/mty>.*$/\1/});
+    if (!has_body()) {
+        return;
     }
-    if ($rb =~ "<stc>[0-9]+</stc>") {
-        $var(fields) = $var(fields) + " stc=" + $(rb{re.subst,/^.*<stc>([0-9]+)<\/stc>.*$/\1/});
+    $var(body) = $(rb{re.subst,/[[:cntrl:]]+/ /g});
+    $var(field) = $(var(body){re.subst,/^(.*<mty>([A-Za-z]+)<\/mty>)?.*$/\2/i});
+    if ($var(field) =~ "^[a-z]+$") {
+        $var(fields) = $var(fields) + " mty=" + $var(field);
     }
-    if ($rb =~ "<ref>[0-9]+</ref>") {
-        $var(fields) = $var(fields) + " ref=" + $(rb{re.subst,/^.*<ref>([0-9]+)<\/ref>.*$/\1/});
+    $var(field) = $(var(body){re.subst,/^(.*<stc>([0-9]+)<\/stc>)?.*$/\2/i});
+    if ($var(field) =~ "^[0-9]+$") {
+        $var(fields) = $var(fields) + " stc=" + $var(field);
+    }
+    $var(field) = $(var(body){re.subst,/^(.*<ref>([0-9]+)<\/ref>)?.*$/\2/i});
+    if ($var(field) =~ "^[0-9]+$") {
+        $var(fields) = $var(fields) + " ref=" + $var(field);
     }
 }
 

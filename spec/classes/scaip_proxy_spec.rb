@@ -426,18 +426,45 @@ describe 'scaip_proxy' do
             .with_content(%r{Routing \$rm from \$si to \$du .*\$var\(fields\)})
         end
 
-        %w[mty stc ref].each do |field|
-          it "extracts #{field} only behind its own guard" do
+        # The body holds the subscriber's number (cid), and re.subst returns
+        # its whole input when the pattern does not match.  So each pattern
+        # matches every one-line string - the field is an optional group -
+        # and yields the value or nothing.  The field is logged only when it
+        # has the value's shape, so a pattern that fails to match after all
+        # (an odd byte, a regex error) cannot log the body.  There is no =~
+        # guard before the extraction: it is case-insensitive while
+        # re.subst is not, which let <MTY> through to log the whole body.
+        # These pin that shape; it was checked against real SIP messages
+        # (one-line, CRLF, tabs, upper case, NUL, Latin-1) in kamailio 6.1.3.
+        { 'mty' => ['[A-Za-z]+', '[a-z]+'], 'stc' => ['[0-9]+', '[0-9]+'], 'ref' => ['[0-9]+', '[0-9]+'] }.each do |field, (cls, shape)|
+          it "takes #{field} with a pattern that matches any line" do
             is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
-              .with_content(%r{^    if \(\$rb =~ "<#{field}>[^"\n]*"\) \{\n        \$var\(fields\) = [^\n]*re\.subst,[^\n]*<#{field}>[^\n]*\n    \}$})
+              .with_content(%r{^    \$var\(field\) = \$\(var\(body\)\{re\.subst,/\^\(\.\*<#{field}>\(#{Regexp.escape(cls)}\)<\\/#{field}>\)\?\.\*\$/\\2/i\}\);\n    if \(\$var\(field\) =~ "\^#{Regexp.escape(shape)}\$"\) \{\n        \$var\(fields\) = \$var\(fields\) \+ " #{field}=" \+ \$var\(field\);\n    \}$})
           end
         end
 
-        # re.subst returns the whole body, cid and all, when its pattern
-        # does not match.
-        it 'never logs the cid: every re.subst sits behind a guard' do
+        it 'runs no other re.subst on the body, and no =~ guard' do
           is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
-            .without_content(%r{^(?!    if \(\$rb =~ ")[^\n]*\n(?!\s*#)[^\n]*re\.subst})
+            .without_content(%r{\$\(var\(body\)\{re\.subst,/(?!\^\(\.\*<(?:mty|stc|ref)>)})
+            .without_content(%r{(?:\$rb|\$var\(body\)) =~})
+        end
+
+        it 'never puts the body itself in a log line' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .without_content(%r{xlog\([^\n]*(?:\$rb\b|\$\(rb[\{)]|\$var\(body\))})
+        end
+
+        # kamailio's regexes do not cross a newline: on a multi-line body
+        # re.subst replaces only the line it matched and keeps the rest of
+        # the body - cid included - around the field.  So the fields are
+        # taken from a copy with every run of control characters (CR, LF,
+        # tab) collapsed to a space, and never from $rb itself.  A bodyless
+        # request returns early: a transformation of an empty value logs an
+        # error.
+        it 'extracts the fields from a one-line copy of the body' do
+          is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
+            .with_content(%r{route\[BODYFIELDS\] \{\n    \$var\(fields\) = "";\n    if \(!has_body\(\)\) \{\n        return;\n    \}\n    \$var\(body\) = \$\(rb\{re\.subst,/\[\[:cntrl:\]\]\+/ /g\}\);\n})
+            .without_content(%r{\$\(rb\{re\.subst,[^\n]*<(?:mty|stc|ref)>})
         end
 
         context 'with log_alarm_fields false' do
