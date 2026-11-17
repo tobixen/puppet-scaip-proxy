@@ -1,6 +1,6 @@
 {
   "name": "tobixen-scaip_proxy",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": "tobixen",
   "summary": "Deploy Kamailio as a SCAIP SIP proxy for isolated RFC1918 networks",
   "license": "MIT",
