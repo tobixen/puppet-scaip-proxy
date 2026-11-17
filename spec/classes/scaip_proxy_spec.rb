@@ -502,9 +502,24 @@ describe 'scaip_proxy' do
         context 'with upstream_addresses' do
           let(:params) { { upstream_host: 'sip.example.com', upstream_addresses: ['203.0.113.1', '203.0.113.2'] } }
 
+          # Substring positions rather than one regex over the request
+          # route: such a regex backtracks exponentially on Ruby < 3.3,
+          # which does not memoize, and hung the CI for six hours.
           it 'reaches a device alias only for requests from the upstream, and refuses the rest' do
-            is_expected.to contain_file('/etc/kamailio/kamailio.cfg')
-              .with_content(%r{^    if \(\$si == "203\.0\.113\.1" \|\| \$si == "203\.0\.113\.2"\) \{\n(?:        [^\n]*\n|\n)*?        if \(!handle_ruri_alias\(\)\) \{\n(?:.*\n)*?        route\(RELAY\);\n    \}\n(?:(?!route\(RELAY\)).)*sl_send_reply\("403", "Forbidden"\);\n    exit;\n\}}m)
+            content = catalogue.resource('file', '/etc/kamailio/kamailio.cfg')[:content]
+            start = content.index(%(\n    if ($si == "203.0.113.1" || $si == "203.0.113.2") {\n))
+            expect(start).not_to be_nil
+            route_end = content.index("\n}\n", start)
+            expect(route_end).not_to be_nil
+            branch = content[start..route_end + 2]
+            alias_at = branch.index("\n        if (!handle_ruri_alias()) {\n")
+            relay = "\n        route(RELAY);\n    }\n"
+            relay_at = branch.index(relay)
+            expect(alias_at).not_to be_nil
+            expect(relay_at).not_to be_nil
+            expect(alias_at).to be < relay_at
+            expect(branch.index('route(RELAY)', relay_at + relay.length)).to be_nil
+            expect(branch).to end_with(%(\n    sl_send_reply("403", "Forbidden");\n    exit;\n}\n))
           end
         end
       end
